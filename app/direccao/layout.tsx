@@ -1,4 +1,4 @@
-import '../globals.css';
+import '../../globals.css';
 import SidebarDireccao from '../components/SidebarDireccao';
 
 export const metadata = {
@@ -11,7 +11,7 @@ export default function DireccaoLayout({ children }: { children: React.ReactNode
     <html lang="pt">
       <body className="bg-gray-50 min-h-screen flex">
         <SidebarDireccao />
-        <main className="flex-1 ml-absolute p-8">
+        <main className="flex-1 ml-auto p-8">
           {children}
         </main>
       </body>
