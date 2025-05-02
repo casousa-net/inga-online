@@ -4,7 +4,7 @@ import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Eye, CheckCircle2, XCircle, UserCog, Users, Briefcase, ChevronDown } from "lucide-react";
 
-export const mockColaboradores = [
+const mockColaboradores = [
   { nome: "Ana Paula", nivel: "Chefe de Departamento", area: "Autorização", estado: "Ativo" },
   { nome: "Carlos Dias", nivel: "Tecnico", area: "Monitorizacao", estado: "Ativo" },
   { nome: "Beatriz Lopes", nivel: "Tecnico", area: "Espaços Verdes", estado: "Inativo" },
