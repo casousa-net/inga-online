@@ -97,7 +97,7 @@ const processosDireccao = [
   },
 ];
 
-import { mockColaboradores } from "../dir_colaboradores/page";
+import { mockColaboradores } from "../dir_colaboradores/mockColaboradores";
 
 export default function ProcessosPage() {
   const [tipoFiltro, setTipoFiltro] = useState("");
