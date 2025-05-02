@@ -1,4 +1,4 @@
-import '../../globals.css';
+import '../globals.css';
 import SidebarDireccao from '../components/SidebarDireccao';
 
 export const metadata = {
