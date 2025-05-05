@@ -1,5 +1,6 @@
 import { Button } from "components/ui/button";
 import Link from "next/link";
+import MobileMenu from "./components/MobileMenu";
 
 const faqs = [
   {
@@ -30,14 +31,20 @@ export default function Home() {
             <img src="/logo_inga.png" alt="Logo" className="h-10 w-auto" />
             <span className="font-bold text-lg text-primary tracking-tight">SIGA</span>
           </div>
-          <div className="flex gap-3">
+          {/* Desktop menu */}
+          <div className="hidden md:flex gap-3 items-center">
             <Link href="/login">
               <Button variant="ghost" className="font-semibold">Entrar</Button>
             </Link>
             <Link href="/cadastro">
               <Button className="font-semibold">Criar Conta</Button>
             </Link>
+            <a href="https://inga.gov.ao" target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" className="font-semibold border-primary text-primary">INGA</Button>
+            </a>
           </div>
+          {/* Mobile menu (hamburguer) */}
+          <MobileMenu />
         </nav>
       </header>
       {/* Hero Section */}

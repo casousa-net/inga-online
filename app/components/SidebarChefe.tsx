@@ -21,8 +21,7 @@ export default function SidebarChefe() {
           </ActiveLink>
           <button
             className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition w-full text-left"
-            onClick={() => setProcessosOpen(!processosOpen)}
-          >
+            onClick={() => setProcessosOpen(!processosOpen)}>
             <Layers size={20} /> Processos
             <ChevronDown size={18} className={processosOpen ? "rotate-180 transition-transform" : "transition-transform"} />
           </button>
