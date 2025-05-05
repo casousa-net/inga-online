@@ -29,10 +29,13 @@ export default function Home() {
         <nav className="w-full max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
           <div className="flex items-center gap-3">
             <img src="/logo_inga.png" alt="Logo" className="h-10 w-auto" />
-            <span className="font-bold text-lg text-primary tracking-tight">SIGA</span>
+            <span className="font-bold text-lg text-primary tracking-tight">ONLINE</span>
           </div>
           {/* Desktop menu */}
           <div className="hidden md:flex gap-3 items-center">
+          <Link href="https://inga.casousa.net">
+              <Button variant="ghost" className="font-semibold">Verificar Documento</Button>
+            </Link>
             <Link href="/login">
               <Button variant="ghost" className="font-semibold">Entrar</Button>
             </Link>

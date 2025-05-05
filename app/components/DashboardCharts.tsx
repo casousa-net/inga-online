@@ -100,9 +100,32 @@ const scatterData = {
   ],
 };
 
+// Gráfico: Número de Empresas Cadastradas
+const empresasData = {
+  labels: ["2020", "2021", "2022", "2023", "2024"],
+  datasets: [
+    { label: "Empresas Cadastradas", data: [120, 180, 250, 320, 400], backgroundColor: "#0ea5e9" },
+  ],
+};
+// Gráfico: Produtos Mais Importados
+const produtosImportadosData = {
+  labels: ["Arroz", "Óleo", "Trigo", "Açúcar", "Peixe"],
+  datasets: [
+    { label: "Importados (toneladas)", data: [500, 420, 380, 300, 250], backgroundColor: ["#22d3ee", "#84cc16", "#f59e42", "#fbbf24", "#a3e635"] },
+  ],
+};
+// Gráfico: Produtos Mais Exportados
+const produtosExportadosData = {
+  labels: ["Café", "Diamante", "Petróleo", "Madeira", "Peixe"],
+  datasets: [
+    { label: "Exportados (toneladas)", data: [600, 540, 500, 350, 200], backgroundColor: ["#0ea5e9", "#22c55e", "#f59e42", "#ef4444", "#a3e635"] },
+  ],
+};
+
 export default function DashboardCharts() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mt-8">
+      {/* Gráficos existentes */}
       <div className="bg-white rounded-2xl shadow-lg p-6">
         <h3 className="font-bold mb-3 text-lime-800">Autorizações e Monitorizações</h3>
         <Bar data={barData} />
@@ -134,6 +157,19 @@ export default function DashboardCharts() {
       <div className="bg-white rounded-2xl shadow-lg p-6">
         <h3 className="font-bold mb-3 text-lime-800">Pagamentos vs Processos</h3>
         <Scatter data={scatterData} />
+      </div>
+      {/* Novos Gráficos */}
+      <div className="bg-white rounded-2xl shadow-lg p-6">
+        <h3 className="font-bold mb-3 text-lime-800">Empresas Cadastradas</h3>
+        <Bar data={empresasData} />
+      </div>
+      <div className="bg-white rounded-2xl shadow-lg p-6">
+        <h3 className="font-bold mb-3 text-lime-800">Produtos Mais Importados</h3>
+        <Pie data={produtosImportadosData} />
+      </div>
+      <div className="bg-white rounded-2xl shadow-lg p-6">
+        <h3 className="font-bold mb-3 text-lime-800">Produtos Mais Exportados</h3>
+        <Pie data={produtosExportadosData} />
       </div>
     </div>
   );
