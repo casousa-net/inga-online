@@ -30,6 +30,52 @@ const rupeOptions = ['Disponível', 'Sem RUPE'];
 
 import { useRouter } from "next/navigation";
 
+function calcularTaxa(valor: number): number {
+  if (valor <= 6226000) return 0.006;
+  if (valor <= 25000000) return 0.004;
+  if (valor <= 62480000) return 0.003;
+  if (valor <= 249040000) return 0.002;
+  return 0.0018;
+}
+
+function formatarValor(valor: number, moeda: string) {
+  if (!moeda) return valor.toLocaleString("pt-AO");
+  if (moeda === "AKZ") return valor.toLocaleString("pt-AO", { style: "currency", currency: "AOA" });
+  if (moeda === "USD") return valor.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  if (moeda === "EUR") return valor.toLocaleString("de-DE", { style: "currency", currency: "EUR" });
+  return valor.toLocaleString();
+}
+
+function TotalAutorizacao({ codigos, quantidades, custos, moeda }: { codigos: string[]; quantidades: string[]; custos: string[]; moeda: string }) {
+  // Calcular total bruto
+  let total = 0;
+  for (let i = 0; i < codigos.length; i++) {
+    const qtd = Number(quantidades[i]);
+    const custo = Number(custos[i]);
+    if (!isNaN(qtd) && !isNaN(custo)) {
+      total += qtd * custo;
+    }
+  }
+  const taxa = calcularTaxa(total);
+  let totalCobrar = total * taxa;
+  let minAplicado = false;
+  if (moeda === "AKZ" && totalCobrar < 2000) {
+    totalCobrar = 2000;
+    minAplicado = true;
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-lg font-mono text-lime-900">
+        {formatarValor(totalCobrar, moeda)}
+      </span>
+      <span className="text-xs text-gray-500">{taxa * 100}% sobre {formatarValor(total, moeda)}</span>
+      {minAplicado && (
+        <span className="text-xs text-orange-600">Valor mínimo aplicado: 2.000 Kz</span>
+      )}
+    </div>
+  );
+}
+
 export default function AutorizacaoPage() {
   const [loading, setLoading] = useState(false);
 
@@ -176,6 +222,13 @@ export default function AutorizacaoPage() {
       <Button variant="link" className="text-lime-700 mb-4" onClick={addCodigo}>
         + Adicionar Código
       </Button>
+
+      {/* Cálculo do total a pagar */}
+      <div className="mb-4 p-4 bg-lime-50 border border-lime-200 rounded-xl">
+        <label className="block text-sm font-bold mb-1 text-lime-800">Total a Pagar pela Autorização</label>
+        <TotalAutorizacao codigos={form.codigos} quantidades={form.quantidades} custos={form.custos} moeda={form.moeda} />
+      </div>
+
       <div className="mb-4">
         <label className="block text-sm font-medium mb-1">Moeda</label>
         <Select
