@@ -8,13 +8,11 @@ export const metadata = {
 
 export default function DireccaoLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt">
-      <body className="bg-gray-50 min-h-screen flex">
-        <SidebarDireccao />
-        <main className="flex-1 ml-auto p-8">
-          {children}
-        </main>
-      </body>
-    </html>
+    <div className="flex min-h-screen w-full">
+      <SidebarDireccao />
+      <main className="flex-1 ml-auto p-8">
+        {children}
+      </main>
+    </div>
   );
 }

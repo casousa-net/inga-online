@@ -2,8 +2,18 @@
 
 import { Users, User, Folder, BarChart2, LogOut, Home } from 'lucide-react';
 import ActiveLink from './activeLink';
+import { useState, useEffect } from 'react';
 
 export default function SidebarDireccao() {
+    const [userName, setUserName] = useState<string>('Direcção');
+
+    useEffect(() => {
+        // Recuperar o nome do usuário do localStorage
+        const storedUserName = localStorage.getItem('userName');
+        if (storedUserName) {
+            setUserName(storedUserName);
+        }
+    }, []);
     return (
         <aside className="flex flex-col justify-between h-screen w-64 bg-gray-800 text-lime-100 fixed left-0 top-0 z-40 transition-all shadow-lg">
             <div>
@@ -33,9 +43,19 @@ export default function SidebarDireccao() {
             {/* Footer */}
             <div className="px-6 py-4 border-t border-gray-700">
                 <button className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
-                    <User size={20} /> Direcção
+                    <User size={20} /> {userName}
                 </button>
-                <button className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition w-full text-left">
+                <button
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition w-full text-left"
+                    onClick={async () => {
+                        try {
+                            await fetch("/api/auth/logout", { method: "POST" });
+                            window.location.href = "/login";
+                        } catch (err) {
+                            alert("Erro ao sair. Tente novamente.");
+                        }
+                    }}
+                >
                     <LogOut size={20} /> Sair
                 </button>
             </div>

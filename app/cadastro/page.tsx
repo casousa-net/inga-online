@@ -10,21 +10,51 @@ export default function CadastroPage() {
     nome: "",
     endereco: "",
     telefone: "",
-    email: ""
+    email: "",
+    senha: "",
+    confirmarSenha: ""
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+    setSuccess(false);
+    if (form.senha !== form.confirmarSenha) {
+      setError("As senhas não coincidem.");
+      return;
+    }
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nif: form.nif,
+          nome: form.nome,
+          endereco: form.endereco,
+          telefone: form.telefone,
+          email: form.email,
+          senha: form.senha,
+          // role: "utente" // descomente e altere para cadastrar outros tipos
+        }),
+      });
+      const data = await res.json();
       setLoading(false);
-      setSuccess(true);
-    }, 1500);
+      if (!res.ok) {
+        setError(data.error || "Erro ao cadastrar.");
+      } else {
+        setSuccess(true);
+      }
+    } catch (err) {
+      setLoading(false);
+      setError("Erro de conexão com o servidor.");
+    }
   }
 
   return (
@@ -58,6 +88,15 @@ export default function CadastroPage() {
               <label className="block text-sm font-medium mb-1">Email</label>
               <Input name="email" value={form.email} onChange={handleChange} required type="email" />
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Senha</label>
+              <Input name="senha" value={form.senha} onChange={handleChange} required type="password" minLength={6} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Confirmar Senha</label>
+              <Input name="confirmarSenha" value={form.confirmarSenha} onChange={handleChange} required type="password" minLength={6} />
+            </div>
+            {error && <div className="text-red-600 text-sm text-center">{error}</div>}
             <Button type="submit" className="mt-4 w-full" disabled={loading}>
               {loading ? "Cadastrando..." : "Cadastrar"}
             </Button>

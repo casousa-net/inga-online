@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model codigopautal {
+  id              Int               @id @default(autoincrement())
+  codigo          String            @unique(map: "CodigoPautal_codigo_key")
+  descricao       String
+  taxa            Float             @default(0)
+  solicitacaoitem solicitacaoitem[]
+}
+
+model documentosolicitacao {
+  id                     Int                    @id @default(autoincrement())
+  solicitacaoId          Int
+  nomeArquivo            String?
+  caminhoArquivo         String?
+  tipo                   String                 @default("")
+  uploadedAt             DateTime               @default(now())
+  nome                   String                 @default("")
+  url                    String                 @default("")
+  solicitacaoautorizacao solicitacaoautorizacao @relation(fields: [solicitacaoId], references: [id], map: "DocumentoSolicitacao_solicitacaoId_fkey")
+
+  @@index([solicitacaoId], map: "DocumentoSolicitacao_solicitacaoId_fkey")
+}
+
+model moeda {
+  id                     Int                      @id @default(autoincrement())
+  nome                   String                   @unique(map: "Moeda_nome_key")
+  simbolo                String
+  taxaCambio             Float
+  solicitacaoautorizacao solicitacaoautorizacao[]
+}
+
+model solicitacaoautorizacao {
+  id                   Int                    @id @default(autoincrement())
+  utenteId             Int
+  tipo                 String
+  moedaId              Int
+  valorTotalKz         Float
+  status               String                 @default("Pendente")
+  rupeReferencia       String?
+  rupeDocumento        String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime
+  aprovadoPorDirecao   Boolean                @default(false)
+  chefeId              Int?
+  dataAprovacao        DateTime?
+  direcaoId            Int?
+  licencaDocumento     String?
+  motivoRejeicao       String?
+  observacoes          String?
+  rupePago             Boolean                @default(false)
+  rupeValidado         Boolean                @default(false)
+  tecnicoId            Int?
+  validadoPorChefe     Boolean                @default(false)
+  validadoPorTecnico   Boolean                @default(false)
+  documentosolicitacao documentosolicitacao[]
+  moeda                moeda                  @relation(fields: [moedaId], references: [id], map: "SolicitacaoAutorizacao_moedaId_fkey")
+  utente               utente                 @relation(fields: [utenteId], references: [id], map: "SolicitacaoAutorizacao_utenteId_fkey")
+  solicitacaoitem      solicitacaoitem[]
+
+  @@index([moedaId], map: "SolicitacaoAutorizacao_moedaId_fkey")
+  @@index([utenteId], map: "SolicitacaoAutorizacao_utenteId_fkey")
+}
+
+model solicitacaoitem {
+  id                     Int                    @id @default(autoincrement())
+  solicitacaoId          Int
+  codigoPautalId         Int
+  quantidade             Float                  @default(0)
+  descricao              String                 @default("")
+  valorTotal             Float                  @default(0)
+  valorUnitario          Float                  @default(0)
+  codigopautal           codigopautal           @relation(fields: [codigoPautalId], references: [id], map: "SolicitacaoItem_codigoPautalId_fkey")
+  solicitacaoautorizacao solicitacaoautorizacao @relation(fields: [solicitacaoId], references: [id], map: "SolicitacaoItem_solicitacaoId_fkey")
+
+  @@index([codigoPautalId], map: "SolicitacaoItem_codigoPautalId_fkey")
+  @@index([solicitacaoId], map: "SolicitacaoItem_solicitacaoId_fkey")
+}
+
+model utente {
+  id                     Int                      @id @default(autoincrement())
+  nif                    String                   @unique(map: "Utente_nif_key")
+  nome                   String
+  endereco               String
+  telefone               String
+  email                  String                   @unique(map: "Utente_email_key")
+  senha                  String
+  role                   utente_role              @default(utente)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime
+  departamento           String?
+  solicitacaoautorizacao solicitacaoautorizacao[]
+}
+
+enum utente_role {
+  utente
+  direccao
+  chefe
+  tecnico
+  admin
+}

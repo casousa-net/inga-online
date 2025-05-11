@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export default function LoginPage() {
   const [form, setForm] = useState({
-    email: "",
+    nif: "",
     senha: ""
   });
   const [loading, setLoading] = useState(false);
@@ -15,18 +15,66 @@ export default function LoginPage() {
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      if (form.email === "" || form.senha === "") {
+    setError("");
+    try {
+      if (form.nif === "" || form.senha === "") {
         setError("Preencha todos os campos.");
-      } else {
-        setError("");
-        // Aqui você pode redirecionar ou autenticar
+        setLoading(false);
+        return;
       }
-    }, 1200);
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      setLoading(false);
+      if (!res.ok) {
+        setError(data.error || "Erro ao fazer login.");
+      } else {
+        // Armazenar informações do usuário no localStorage
+        if (data.nome) {
+          localStorage.setItem('userName', data.nome);
+        }
+        
+        if (data.role) {
+          localStorage.setItem('userRole', data.role);
+        }
+
+        if (data.id) {
+          localStorage.setItem('utenteId', data.id.toString());
+        }
+        
+        // Armazenar o departamento do usuário se disponível
+        if (data.departamento) {
+          localStorage.setItem('userDepartamento', data.departamento);
+        }
+
+        // Redirecionar com base no role do usuário
+        switch (data.role) {
+          case 'admin':
+            window.location.href = "/admin";
+            break;
+          case 'chefe':
+            window.location.href = "/chefe";
+            break;
+          case 'tecnico':
+            window.location.href = "/tecnico";
+            break;
+          case 'direccao':
+            window.location.href = "/admin";
+            break;
+          default:
+            window.location.href = "/utente";
+        }
+      }
+    } catch (err) {
+      setLoading(false);
+      setError("Erro de conexão com o servidor.");
+    }
   }
 
   return (
@@ -35,8 +83,8 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-primary mb-6 text-center">Entrar no Sistema</h1>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <Input name="email" value={form.email} onChange={handleChange} required type="email" />
+            <label className="block text-sm font-medium mb-1">NIF</label>
+            <Input name="nif" value={form.nif} onChange={handleChange} required maxLength={14} />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Senha</label>

@@ -3,10 +3,19 @@
 import { Home, BarChart, FileText, Search, Leaf, CreditCard, User, LogOut } from 'lucide-react';
 import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import ActiveLink from './activeLink';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Sidebar() {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [userName, setUserName] = useState<string>('Usuário');
+
+    useEffect(() => {
+        // Recuperar o nome do usuário do localStorage
+        const storedUserName = localStorage.getItem('userName');
+        if (storedUserName) {
+            setUserName(storedUserName);
+        }
+    }, []);
 
     const toggleSettingsMenu = () => {
         setIsSettingsOpen(!isSettingsOpen);
@@ -60,7 +69,7 @@ export default function Sidebar() {
                             </div>
                         )}
                     </div>
-                    <ActiveLink href="/ut_pagamentos" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
+                    <ActiveLink href="/utente/ut_pagamentos" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
                         <CreditCard size={20} /> Pagamentos
                     </ActiveLink>
                 </nav>
@@ -68,9 +77,19 @@ export default function Sidebar() {
             {/* User & Logout */}
             <div className="flex flex-col gap-2 px-4 pb-6">
                 <button className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
-                    <User size={20} /> Usuário
+                    <User size={20} /> {userName}
                 </button>
-                <button className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
+                <button
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition"
+                    onClick={async () => {
+                        try {
+                            await fetch("/api/auth/logout", { method: "POST" });
+                            window.location.href = "/login";
+                        } catch (err) {
+                            alert("Erro ao sair. Tente novamente.");
+                        }
+                    }}
+                >
                     <LogOut size={20} /> Sair
                 </button>
             </div>

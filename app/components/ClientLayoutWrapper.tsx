@@ -1,7 +1,7 @@
 "use client";
-import Sidebar from "./Sidebar";
 import SidebarAdmin from "./SidebarAdmin";
 import { usePathname } from "next/navigation";
+import Sidebar from "./SidebarUtente";
 
 export default function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

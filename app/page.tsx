@@ -33,7 +33,7 @@ export default function Home() {
           </div>
           {/* Desktop menu */}
           <div className="hidden md:flex gap-3 items-center">
-          <Link href="https://inga.casousa.net">
+            <Link href="https://inga.casousa.net">
               <Button variant="ghost" className="font-semibold">Verificar Documento</Button>
             </Link>
             <Link href="/login">
@@ -74,7 +74,7 @@ export default function Home() {
           <img src="/about-illustration.svg" alt="Sobre" className="w-64 h-auto hidden md:block" />
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-primary mb-3">Sobre o Sistema</h2>
-            <p className="text-gray-700 text-lg mb-2">O SIGA é um sistema moderno desenvolvido para facilitar a emissão de licenças, autorizações e o acompanhamento de processos ambientais em Angola.</p>
+            <p className="text-gray-700 text-lg mb-2">O INGA ONLINE é um sistema moderno desenvolvido para facilitar a emissão de licenças, autorizações e o acompanhamento de processos ambientais em Angola.</p>
             <ul className="list-disc pl-5 text-gray-600 text-base">
               <li>Solicite e acompanhe processos de qualquer lugar</li>
               <li>Documentação digital e notificações em tempo real</li>
@@ -106,10 +106,10 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-gray-500 text-sm">
           <div className="flex items-center gap-2">
             <img src="/logo_inga.png" alt="Logo" className="h-8 w-auto" />
-            <span>SIGA &mdash; Sistema Integrado de Gestão Ambiental</span>
+            <span>INGA ONLINE &mdash; Sistema Integrado de Gestão Ambiental</span>
           </div>
           <span>&copy; {new Date().getFullYear()} Governo de Angola. Todos os direitos reservados.</span>
-          <a href="https://api.whatsapp.com/send?phone=244948701010&text=Caro%20utente,%20%20%0A%0ASeja%20bem-vindo%20ao%20canal%20de%20apoio%20do%20Sistema%20SIGA.%20Podemos%20ajud%C3%A1-lo?" target="_blank" rel="noopener noreferrer" className="hover:text-primary underline">Fale connosco</a>
+          <a href="https://api.whatsapp.com/send?phone=244948701010&text=Caro%20utente,%20%20%0A%0ASeja%20bem-vindo%20ao%20canal%20de%20apoio%20do%20Sistema%INGA%ONLINE.%20Podemos%20ajud%C3%A1-lo?" target="_blank" rel="noopener noreferrer" className="hover:text-primary underline">Fale connosco</a>
         </div>
       </footer>
     </div>
