@@ -23,19 +23,19 @@ const styles = StyleSheet.create({
     right: 10,
     bottom: 10,
     borderStyle: 'solid',
-    borderWidth: 10,
-    borderColor: '#c90000',
+    borderWidth: 12,
+    borderColor: '#c90000', // Dourada
     zIndex: -1,
   },
   border2: {
     position: 'absolute',
-    top: 9,
-    left: 9,
-    right: 9,
-    bottom: 9,
+    top: 8,
+    left: 8,
+    right: 8,
+    bottom: 8,
     borderStyle: 'solid',
-    borderWidth: 8,
-    borderColor: '#000000',
+    borderWidth: 10,
+    borderColor: '#000000', //Preta
     zIndex: -1,
   },
   innerBorder: {
@@ -45,15 +45,15 @@ const styles = StyleSheet.create({
     right: 12,
     bottom: 12,
     borderStyle: 'solid',
-    borderWidth: 5,
-    borderColor: '#ffdd00', // Dourado
+    borderWidth: 6,
+    borderColor: '#ffdd00', // Dourada
     zIndex: -1,
   },
   cornerSquare: {
     position: 'absolute',
     width: 16,
     height: 16,
-    backgroundColor: '#c90000',
+    backgroundColor: '#c90000', // vermelha
     zIndex: 1,
   },
   topLeft: {
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   },
   paragraph: {
     fontSize: 12,
-    marginTop: 10,
+    marginTop: 12,
     textAlign: 'justify',
     lineHeight: 1.2,
     fontFamily: 'Times-Roman',
@@ -157,19 +157,43 @@ const styles = StyleSheet.create({
   },
   qrCode: {
     position: 'absolute',
-    bottom: 30,
-    right: 30,
+    bottom: 35,
+    right: 35,
     width: 80,
     height: 80,
   },
   qrCodeText: {
     position: 'absolute',
-    bottom: 20,
-    right: 30,
-    fontSize: 8,
+    bottom: 25,
+    right: 35,
+    fontSize: 10,
     textAlign: 'center',
     width: 80,
     fontFamily: 'Times-Roman',
+  },
+  digitalSignature: {
+    position: 'absolute',
+    bottom: 25,
+    left: 30,
+    fontSize: 6,
+    color: '#666666',
+    fontFamily: 'Times-Roman',
+    textAlign: 'left',
+  },
+  watermark: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: -2,
+  },
+  watermarkImage: {
+    width: 450,
+    opacity: 0.02,
   },
 });
 
@@ -211,6 +235,14 @@ const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({
         <View style={[styles.cornerSquare, styles.bottomRight]} />
         <View style={styles.border2} />
         <View style={styles.innerBorder} />
+
+        {/* Marca d'água */}
+        <View style={styles.watermark}>
+          <Image
+            src="/assets/pdf/logo-inga.png"
+            style={styles.watermarkImage}
+          />
+        </View>
 
         {/* Cabeçalho */}
         <View style={styles.header}>
@@ -305,6 +337,11 @@ const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({
           style={styles.qrCode}
         />
         <Text style={styles.qrCodeText}>PA {data.numeroAutorizacao}</Text>
+
+        {/* Assinatura Digital */}
+        <Text style={styles.digitalSignature}>
+          Documento assinado digitalmente • Verificar em: inga.gov.ao/verificar/{data.numeroAutorizacao}
+        </Text>
       </Page>
     </Document>
   );
