@@ -104,6 +104,8 @@ model utente {
   updatedAt              DateTime                 @updatedAt
   solicitacaoautorizacao solicitacaoautorizacao[]
   historicoNiveis        historicoNivel[]
+  configuracaoMonitorizacao ConfiguracaoMonitorizacao?
+  monitorizacoes        Monitorizacao[]
 }
 
 model historicoNivel {
@@ -153,4 +155,65 @@ enum utente_role {
   chefe
   tecnico
   admin
+}
+
+enum periodo_monitorizacao {
+  ANUAL
+  SEMESTRAL
+  TRIMESTRAL
+}
+
+enum estado_periodo {
+  ABERTO
+  FECHADO
+  AGUARDANDO_REAVALIACAO
+  REABERTURA_SOLICITADA
+}
+
+model ConfiguracaoMonitorizacao {
+  id                Int                 @id @default(autoincrement())
+  utenteId          Int                 @unique
+  tipoPeriodo       periodo_monitorizacao
+  dataInicio        DateTime
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  utente            utente              @relation(fields: [utenteId], references: [id])
+  periodos          PeriodoMonitorizacao[]
+}
+
+model PeriodoMonitorizacao {
+  id                      Int                 @id @default(autoincrement())
+  configuracaoId         Int
+  numeroPeriodo          Int                 // 1, 2, 3, 4 (para trimestral)
+  dataInicio             DateTime
+  dataFim                DateTime
+  estado                 estado_periodo      @default(ABERTO)
+  configuracao           ConfiguracaoMonitorizacao @relation(fields: [configuracaoId], references: [id])
+  monitorizacoes         Monitorizacao[]
+
+  @@index([configuracaoId])
+}
+
+model Monitorizacao {
+  id                      Int                 @id @default(autoincrement())
+  utenteId                Int
+  periodoId               Int?
+  numeroProcesso          String              @unique
+  dataSubmissao           DateTime            @default(now())
+  estado                  String              @default("Pendente")
+  relatorioPath           String?
+  parecerTecnicoPath      String?
+  rupeReferencia          String?
+  rupeDocumentoPath       String?
+  rupePago                Boolean             @default(false)
+  rupeValidado            Boolean             @default(false)
+  observacoes             String?
+  tecnicoId               Int?
+  chefeId                 Int?
+  direcaoId               Int?
+  utente                  utente              @relation(fields: [utenteId], references: [id])
+  periodo                 PeriodoMonitorizacao? @relation(fields: [periodoId], references: [id])
+
+  @@index([utenteId])
+  @@index([periodoId])
 }
