@@ -214,7 +214,7 @@ export default function SolicitacoesTecnicoPage() {
             <h3 className="font-semibold mb-2">Informações Gerais</h3>
             <p><span className="text-gray-600">Processo:</span> PA-{String(selectedSolicitacao.id).padStart(6, '0')}</p>
             <p><span className="text-gray-600">Tipo:</span> {selectedSolicitacao.tipo}</p>
-            <p><span className="text-gray-600">Data:</span> {new Date(selectedSolicitacao.createdAt).toLocaleDateString()}</p>
+            <p><span className="text-gray-600">Data:</span> {new Date(selectedSolicitacao.createdAt).toLocaleString()}</p>
             <p><span className="text-gray-600">Status:</span> {selectedSolicitacao.status}</p>
           </div>
           <div>
@@ -351,7 +351,7 @@ export default function SolicitacoesTecnicoPage() {
                   </TableCell>
                   <TableCell>{item.utente.nome}</TableCell>
                   <TableCell>Autorização</TableCell>
-                  <TableCell>{new Date(item.createdAt).toLocaleDateString('pt-BR')}</TableCell>
+                  <TableCell>{new Date(item.createdAt).toLocaleString('pt-BR')}</TableCell>
                   <TableCell>KZ {item.valorTotalKz.toLocaleString('pt-AO', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                   <TableCell>
                     <Badge 

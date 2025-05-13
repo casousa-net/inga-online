@@ -172,7 +172,7 @@ export default function ProcessoPage() {
             PA-{solicitacao.id.toString().padStart(4, '0')}
           </h1>
           <p className="text-muted-foreground">
-            Criado em {solicitacao.createdAt ? new Date(solicitacao.createdAt).toLocaleDateString('pt-BR') : '-'}
+            Criado em {solicitacao.createdAt ? new Date(solicitacao.createdAt).toLocaleString('pt-BR') : '-'}
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">

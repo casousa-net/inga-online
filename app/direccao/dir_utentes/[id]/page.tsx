@@ -138,7 +138,7 @@ export default function UtentePerfilPage({ params }: { params: Promise<{ id: str
         <div className="mb-2"><span className="font-semibold">Endereço:</span> {utente.endereco}</div>
         <div className="mb-2"><span className="font-semibold">Email:</span> {utente.email}</div>
         <div className="mb-2"><span className="font-semibold">Telefone:</span> {utente.telefone}</div>
-        <div className="mb-2"><span className="font-semibold">Data de Cadastro:</span> {new Date(utente.createdAt).toLocaleDateString('pt-BR')}</div>
+        <div className="mb-2"><span className="font-semibold">Data de Cadastro:</span> {new Date(utente.createdAt).toLocaleString('pt-BR')}</div>
         <div>
           <div className="flex items-center gap-3 mb-2">
             <span className="font-semibold">Status:</span>

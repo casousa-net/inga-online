@@ -91,7 +91,7 @@ export default function ChefeAutorizacao() {
                   </TableCell>
                   <TableCell>{solicitacao.utente.nome}</TableCell>
                   <TableCell>Autorização</TableCell>
-                  <TableCell>{solicitacao.createdAt ? new Date(solicitacao.createdAt).toLocaleDateString('pt-BR') : '-'}</TableCell>
+                  <TableCell>{solicitacao.createdAt ? new Date(solicitacao.createdAt).toLocaleString('pt-BR') : '-'}</TableCell>
                   <TableCell>KZ {solicitacao.valorTotalKz?.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) || '0,00'}</TableCell>
                   <TableCell>
                     <Badge 

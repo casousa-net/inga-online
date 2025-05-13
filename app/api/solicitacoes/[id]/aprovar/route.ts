@@ -108,7 +108,7 @@ export async function POST(
     });
     
     // Data
-    const dataEmissao = new Date().toLocaleDateString('pt-AO');
+    const dataEmissao = new Date().toLocaleString('pt-AO');
     page.drawText(`Data de Emissão: ${dataEmissao}`, {
       x: 350,
       y,
@@ -274,7 +274,7 @@ export async function POST(
     });
     
     y -= lineHeight;
-    const dataAssinatura = new Date().toLocaleDateString('pt-AO');
+    const dataAssinatura = new Date().toLocaleString('pt-AO');
     page.drawText(`Data: ${dataAssinatura}`, {
       x: 250,
       y,

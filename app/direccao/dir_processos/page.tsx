@@ -137,7 +137,7 @@ export default function ProcessosPage() {
                       {proc.tipo}
                     </Badge>
                   </TableCell>
-                  <TableCell>{new Date(proc.createdAt).toLocaleDateString('pt-BR')}</TableCell>
+                  <TableCell>{new Date(proc.createdAt).toLocaleString('pt-BR')}</TableCell>
                   <TableCell>{proc.valorTotalKz.toLocaleString('pt-AO')} KZ</TableCell>
                   <TableCell>
                     {proc.status === 'Pagamento_Confirmado' ? (

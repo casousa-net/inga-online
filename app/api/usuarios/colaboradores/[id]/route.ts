@@ -29,22 +29,32 @@ export async function GET(
     }
 
     // Buscar o colaborador com histórico de processos e níveis
+    // Buscar o colaborador
     const colaborador = await (prisma.utente.findUnique({
       where: { id },
       include: {
-        solicitacaoautorizacao: {
-          select: {
-            id: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        },
         historicoNiveis: true
       } as any
+    }) as any);
+
+    // Buscar processos onde o colaborador foi validador
+    const processosValidados = await (prisma.solicitacaoautorizacao.findMany({
+      where: {
+        OR: [
+          { tecnicoValidador: colaborador.nome },
+          { chefeValidador: colaborador.nome },
+          { direcaoValidador: colaborador.nome }
+        ]
+      } as any,
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
     }) as any);
 
     if (!colaborador) {
@@ -77,7 +87,7 @@ export async function GET(
             colaborador.departamento : 'Não especificada',
       estado: 'Ativo',
       createdAt: colaborador.createdAt.toISOString(),
-      processos: colaborador.solicitacaoautorizacao || [],
+      processos: processosValidados || [],
       historicoNiveis: colaborador.historicoNiveis || []
     };
 

@@ -61,7 +61,7 @@ export async function GET(request: Request) {
       }).format(proc.valorTotalKz);
 
       // Formatar a data
-      const data = new Date(proc.createdAt).toLocaleDateString('pt-AO');
+      const data = new Date(proc.createdAt).toLocaleString('pt-AO');
 
       return {
         id: proc.id,

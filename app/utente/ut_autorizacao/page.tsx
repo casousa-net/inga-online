@@ -904,7 +904,7 @@ export default function AutorizacaoPage() {
               <TableRow key={item.id} className="hover:bg-base-100 transition">
                 <TableCell className="font-mono">{numero}</TableCell>
                 <TableCell>{item.tipo}</TableCell>
-                <TableCell>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
                 <TableCell>
                   <Badge variant={badgeVariant} className="flex items-center gap-1 px-2">
                     {item.status === 'Aprovado' && <CheckCircle className="text-green-600" size={16} />}

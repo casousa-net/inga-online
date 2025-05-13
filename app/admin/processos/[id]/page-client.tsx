@@ -151,7 +151,7 @@ export default function ProcessoDetalhesPageClient({ id }: ProcessoDetalhesPageC
     if (!dateString) return 'Data não disponível';
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR');
+      return date.toLocaleString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR');
     } catch (e) {
       return 'Data inválida';
     }

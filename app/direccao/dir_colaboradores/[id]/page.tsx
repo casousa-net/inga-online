@@ -184,7 +184,7 @@ export default function ColaboradorDetalhesPage({ params }: { params: Promise<{ 
                 
                 <div className="flex items-center gap-2 text-gray-600">
                   <Calendar className="h-4 w-4" />
-                  <span>Registrado em {new Date(colaborador.createdAt).toLocaleDateString('pt-BR')}</span>
+                  <span>Registrado em {new Date(colaborador.createdAt).toLocaleString('pt-BR')}</span>
                 </div>
               </div>
 
@@ -300,8 +300,8 @@ export default function ColaboradorDetalhesPage({ params }: { params: Promise<{ 
                         <td className="py-2 px-4">
                           <Badge variant="outline">{processo.status}</Badge>
                         </td>
-                        <td className="py-2 px-4">{new Date(processo.createdAt).toLocaleDateString('pt-BR')}</td>
-                        <td className="py-2 px-4">{new Date(processo.updatedAt).toLocaleDateString('pt-BR')}</td>
+                        <td className="py-2 px-4">{new Date(processo.createdAt).toLocaleString('pt-BR')}</td>
+                        <td className="py-2 px-4">{new Date(processo.updatedAt).toLocaleString('pt-BR')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -329,7 +329,7 @@ export default function ColaboradorDetalhesPage({ params }: { params: Promise<{ 
                     </div>
                     <div className="text-sm text-gray-500">
                       <p>Motivo: {historico.motivoAlteracao}</p>
-                      <p>Data: {new Date(historico.dataAlteracao).toLocaleDateString('pt-BR')}</p>
+                      <p>Data: {new Date(historico.dataAlteracao).toLocaleString('pt-BR')}</p>
                     </div>
                   </div>
                 ))}

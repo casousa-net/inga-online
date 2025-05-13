@@ -309,7 +309,7 @@ export default function SolicitacoesChefeePage() {
             <h3 className="font-semibold mb-2">Informações Gerais</h3>
             <p><span className="text-gray-600">Processo:</span> PA-{String(selectedSolicitacao.id).padStart(6, '0')}</p>
             <p><span className="text-gray-600">Tipo:</span> {selectedSolicitacao.tipo}</p>
-            <p><span className="text-gray-600">Data:</span> {new Date(selectedSolicitacao.createdAt).toLocaleDateString()}</p>
+            <p><span className="text-gray-600">Data:</span> {new Date(selectedSolicitacao.createdAt).toLocaleString()}</p>
             <p><span className="text-gray-600">Status:</span> {selectedSolicitacao.status}</p>
           </div>
           <div>
@@ -541,7 +541,7 @@ export default function SolicitacoesChefeePage() {
                     <TableCell className="font-mono">{numero}</TableCell>
                     <TableCell>{item.utente.nome}</TableCell>
                     <TableCell>{item.tipo}</TableCell>
-                    <TableCell>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant={getBadgeVariant(item.status)} className="flex items-center gap-1 px-2">
                         {item.status === 'Aprovado' && <CheckCircle className="text-green-600" size={16} />}

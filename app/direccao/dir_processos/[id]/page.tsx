@@ -356,7 +356,7 @@ export default function ProcessoDetalhesPage() {
               <div>
                 <h3 className="font-semibold">{solicitacao.tipo}</h3>
                 <p className="text-sm text-gray-500">
-                  Criado em: {new Date(solicitacao.createdAt).toLocaleDateString('pt-BR')}
+                  Criado em: {new Date(solicitacao.createdAt).toLocaleString('pt-BR')}
                 </p>
               </div>
             </div>
