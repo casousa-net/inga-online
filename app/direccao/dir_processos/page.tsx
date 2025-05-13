@@ -146,7 +146,7 @@ export default function ProcessosPage() {
                       </Badge>
                     ) : proc.status === 'Aprovado' ? (
                       <Badge className="bg-green-100 text-green-800 border-green-200 flex items-center gap-1">
-                        <CheckCircle size={12} /> Aprovado
+                        <CheckCircle size={12} /> Assinado
                       </Badge>
                     ) : (
                       <Badge>

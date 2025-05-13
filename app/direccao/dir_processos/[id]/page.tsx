@@ -17,6 +17,7 @@ type Solicitacao = {
   status: string;
   valorTotalKz: number;
   createdAt: string;
+  numeroFactura?: string;
   validadoPorTecnico?: boolean;
   validadoPorChefe?: boolean;
   tecnicoValidador?: string;
@@ -69,7 +70,7 @@ export default function ProcessoDetalhesPage() {
   const [rejeitando, setRejeitando] = useState(false);
   const [motivoRejeicao, setMotivoRejeicao] = useState('');
   const [showRejeicaoModal, setShowRejeicaoModal] = useState(false);
-  const [numeroFactura, setNumeroFactura] = useState('');
+
   const [showAprovacaoModal, setShowAprovacaoModal] = useState(false);
 
   useEffect(() => {
@@ -100,9 +101,9 @@ export default function ProcessoDetalhesPage() {
   const aprovarProcesso = async () => {
     if (!solicitacao) return;
 
-    // Verificar se o número da fatura foi informado
-    if (!numeroFactura.trim()) {
-      alert('Por favor, informe o número da fatura.');
+    // Verificar se existe um número da fatura
+    if (!solicitacao.numeroFactura) {
+      alert('Não foi possível encontrar o número da fatura.');
       return;
     }
 
@@ -117,13 +118,13 @@ export default function ProcessoDetalhesPage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          numeroFactura: numeroFactura.trim(),
+          numeroFactura: solicitacao.numeroFactura,
           nome
         })
       });
 
       if (!response.ok) {
-        throw new Error('Falha ao aprovar processo');
+        throw new Error('Falha ao Assinar processo');
       }
 
       const data = await response.json();
@@ -143,8 +144,8 @@ export default function ProcessoDetalhesPage() {
       }, 1500);
 
     } catch (error) {
-      console.error('Erro ao aprovar processo:', error);
-      alert('Erro ao aprovar processo. Tente novamente mais tarde.');
+      console.error('Erro ao Assinar processo:', error);
+      alert('Erro ao Assinar processo. Tente novamente mais tarde.');
     } finally {
       setAprovando(false);
     }
@@ -297,12 +298,12 @@ export default function ProcessoDetalhesPage() {
                 onClick={abrirModalAprovacao}
                 disabled={aprovando}
               >
-                <CheckCircle className="mr-2 h-4 w-4" /> {aprovando ? 'Aprovando...' : 'Aprovar Processo'}
+                <CheckCircle className="mr-2 h-4 w-4" /> {aprovando ? 'Aprovando...' : 'Assinar Processo'}
               </Button>
             </>
           ) : solicitacao.aprovadoPorDirecao ? (
             <Badge className="bg-green-100 text-green-800 px-3 py-1 text-sm flex items-center gap-1">
-              <CheckCircle className="h-4 w-4" /> Processo Aprovado
+              <CheckCircle className="h-4 w-4" /> Processo Assinado
             </Badge>
           ) : (
             <Badge className="bg-orange-100 text-orange-800 px-3 py-1 text-sm flex items-center gap-1">
@@ -685,20 +686,17 @@ export default function ProcessoDetalhesPage() {
       <Dialog open={showAprovacaoModal} onOpenChange={setShowAprovacaoModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Aprovar Processo</DialogTitle>
+            <DialogTitle>Assinar Processo</DialogTitle>
             <DialogDescription>
-              Por favor, informe o número da fatura para gerar a autorização:
+              Tem certeza que deseja Assinar este processo e gerar a autorização ambiental?
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="numeroFactura">Número da Fatura</Label>
-              <Input
-                id="numeroFactura"
-                value={numeroFactura}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNumeroFactura(e.target.value)}
-                placeholder="Ex: FT 2024/123"
-              />
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Número da Fatura:</span>
+                <span className="text-sm font-semibold">{solicitacao.numeroFactura}</span>
+              </div>
               <p className="text-sm text-gray-500">
                 Este número será incluído na autorização ambiental.
               </p>
@@ -713,7 +711,7 @@ export default function ProcessoDetalhesPage() {
             </Button>
             <Button
               onClick={aprovarProcesso}
-              disabled={aprovando || !numeroFactura.trim()}
+              disabled={aprovando}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               {aprovando ? (

@@ -65,7 +65,7 @@ export default function LoginPage() {
             window.location.href = "/tecnico";
             break;
           case 'direccao':
-            window.location.href = "/admin";
+            window.location.href = "/direccao";
             break;
           default:
             window.location.href = "/utente";

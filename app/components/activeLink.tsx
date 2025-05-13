@@ -19,9 +19,9 @@ export default function ActiveLink({
   const pathname = usePathname();
   const isActive =
     typeof href === "string"
-      ? (href === "/utente"
-          ? pathname === href // Dashboard só ativo se for exatamente /utente
-          : pathname === href || pathname.startsWith(href + "/"))
+      ? (href === "/direccao" || href === "/utente" || href === "/chefe" || href === "/tecnico" || href === "/admin"
+          ? pathname === href // Dashboard só ativo se for exatamente a raiz
+          : pathname === href || (pathname.startsWith(href + "/") && !pathname.startsWith(href + "/../")))
       : false;
   return (
     <Link

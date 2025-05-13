@@ -215,8 +215,8 @@ const styles = StyleSheet.create({
   },
   qrCodeContainer: {
     position: 'absolute',
-    bottom: 35,
-    right: 35,
+    bottom: 20,
+    right: 0,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
