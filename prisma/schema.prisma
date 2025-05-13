@@ -44,6 +44,7 @@ model solicitacaoautorizacao {
   tipo                 String
   moedaId              Int
   valorTotalKz         Float
+  numeroFactura        String?
   status               String                 @default("Pendente")
   rupeReferencia       String?
   rupeDocumento        String?
@@ -61,11 +62,11 @@ model solicitacaoautorizacao {
   tecnicoId            Int?
   validadoPorChefe     Boolean                @default(false)
   validadoPorTecnico   Boolean                @default(false)
+  autorizacao          autorizacao?
   documentosolicitacao documentosolicitacao[]
   moeda                moeda                  @relation(fields: [moedaId], references: [id], map: "SolicitacaoAutorizacao_moedaId_fkey")
   utente               utente                 @relation(fields: [utenteId], references: [id], map: "SolicitacaoAutorizacao_utenteId_fkey")
   solicitacaoitem      solicitacaoitem[]
-  autorizacaoambiental autorizacaoambiental?
 
   @@index([moedaId], map: "SolicitacaoAutorizacao_moedaId_fkey")
   @@index([utenteId], map: "SolicitacaoAutorizacao_utenteId_fkey")
@@ -101,33 +102,33 @@ model utente {
   solicitacaoautorizacao solicitacaoautorizacao[]
 }
 
-model autorizacaoambiental {
-  id                Int                 @id @default(autoincrement())
-  numeroAutorizacao String              @unique
-  tipoAutorizacao   String              // IMPORTAÇÃO, EXPORTAÇÃO, REEXPORTAÇÃO
-  solicitacaoId     Int                 @unique
-  dataEmissao       DateTime            @default(now())
-  numeroFactura     String
-  produtos          String
-  quantidade        String
-  revogado          Boolean             @default(false)
-  dataRevogacao     DateTime?
-  motivoRevogacao   String?
-  assinadoPor       String              @default("SIMONE DA SILVA")
-  solicitacao       solicitacaoautorizacao @relation(fields: [solicitacaoId], references: [id])
-  codigosPautais    codigopautalautorizacao[]
-  
-  @@index([solicitacaoId])
+model codigopautalautorizacao {
+  id                   Int         @id @default(autoincrement())
+  autorizacaoId        Int
+  codigo               String
+  descricao            String
+  autorizacaoambiental autorizacao @relation(fields: [autorizacaoId], references: [id])
+
+  @@index([autorizacaoId])
 }
 
-model codigopautalautorizacao {
-  id                    Int                 @id @default(autoincrement())
-  autorizacaoId         Int
-  codigo                String
-  descricao             String
-  autorizacaoambiental  autorizacaoambiental @relation(fields: [autorizacaoId], references: [id])
-  
-  @@index([autorizacaoId])
+model autorizacao {
+  id                     Int                       @id @default(autoincrement())
+  numeroAutorizacao      String                    @unique
+  tipoAutorizacao        String
+  solicitacaoId          Int                       @unique
+  dataEmissao            DateTime                  @default(now())
+  numeroFactura          String
+  produtos               String
+  quantidade             String
+  revogado               Boolean                   @default(false)
+  dataRevogacao          DateTime?
+  motivoRevogacao        String?
+  assinadoPor            String                    @default("SIMONE DA SILVA")
+  solicitacaoautorizacao solicitacaoautorizacao    @relation(fields: [solicitacaoId], references: [id])
+  codigosPautais         codigopautalautorizacao[]
+
+  @@index([solicitacaoId])
 }
 
 enum utente_role {

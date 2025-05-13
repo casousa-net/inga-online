@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     
     // Verificar se já existe uma autorização para esta solicitação
     const autorizacaoExistente = await prisma.$queryRaw`
-      SELECT id FROM autorizacaoambiental WHERE solicitacaoId = ${solicitacaoId}
+      SELECT id FROM autorizacao WHERE solicitacaoId = ${solicitacaoId}
     `;
     
     if (autorizacaoExistente && Array.isArray(autorizacaoExistente) && autorizacaoExistente.length > 0) {
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     
     // Criar a autorização ambiental
     const autorizacao = await prisma.$executeRaw`
-      INSERT INTO autorizacaoambiental (
+      INSERT INTO autorizacao (
         numeroAutorizacao, 
         tipoAutorizacao, 
         solicitacaoId, 
@@ -73,15 +73,15 @@ export async function POST(request: NextRequest) {
     `;
     
     // Obter o ID da autorização recém-criada
-    const novaAutorizacao = await prisma.$queryRaw`
-      SELECT id FROM autorizacaoambiental WHERE numeroAutorizacao = ${numeroAutorizacao}
+    const novaAutorizacao = await prisma.$queryRaw<{ id: number }[]>`
+      SELECT id FROM autorizacao WHERE numeroAutorizacao = ${numeroAutorizacao}
     `;
     
     if (!novaAutorizacao || Array.isArray(novaAutorizacao) && novaAutorizacao.length === 0) {
       return NextResponse.json({ error: 'Erro ao criar autorização' }, { status: 500 });
     }
     
-    const autorizacaoId = Array.isArray(novaAutorizacao) ? novaAutorizacao[0].id : novaAutorizacao.id;
+    const autorizacaoId = (novaAutorizacao[0] as { id: number }).id;
     
     // Adicionar códigos pautais à autorização
     if (codigosPautais && Array.isArray(codigosPautais) && codigosPautais.length > 0) {

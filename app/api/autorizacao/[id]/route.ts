@@ -8,62 +8,78 @@ export async function GET(
   context: { params: { id: string } }
 ) {
   try {
+    console.log('Buscando autorização com ID:', context.params.id);
     const id = parseInt(context.params.id);
     
     if (isNaN(id)) {
+      console.log('ID inválido:', context.params.id);
       return NextResponse.json(
         { error: 'ID inválido' },
         { status: 400 }
       );
     }
     
-    // Buscar a autorização pelo ID
-    const autorizacao = await prisma.$queryRaw`
+    console.log('ID convertido para número:', id);
+    
+    // Buscar a autorização usando SQL bruto para evitar problemas de tipagem
+    console.log('Buscando autorização com ID:', id);
+    const [autorizacao] = await prisma.$queryRaw<any[]>`
       SELECT 
-        aa.*, 
+        a.*, 
         sa.id as solicitacaoId,
         u.nome as entidadeNome,
         u.nif as entidadeNif
-      FROM autorizacaoambiental aa
-      JOIN solicitacaoautorizacao sa ON aa.solicitacaoId = sa.id
+      FROM autorizacao a
+      JOIN solicitacaoautorizacao sa ON a.solicitacaoId = sa.id
       JOIN utente u ON sa.utenteId = u.id
-      WHERE aa.id = ${id}
+      WHERE a.id = ${id}
       LIMIT 1
     `;
     
-    if (!autorizacao || (Array.isArray(autorizacao) && autorizacao.length === 0)) {
+    console.log('Resultado da consulta:', autorizacao);
+    
+    if (!autorizacao) {
+      console.log('Autorização não encontrada para o ID:', id);
       return NextResponse.json(
         { error: 'Autorização não encontrada' },
         { status: 404 }
       );
     }
     
-    // Converter para objeto único se for array
-    const auth = Array.isArray(autorizacao) ? autorizacao[0] : autorizacao;
+    // Gerar o número do processo no formato PA-000000
+    const numeroProcesso = `PA-${String(autorizacao.solicitacaoId).padStart(6, '0')}`;
+    console.log('Número do processo gerado:', numeroProcesso);
     
-    // Buscar códigos pautais associados
-    const codigosPautais = await prisma.$queryRaw<{codigo: string, descricao: string}[]>`
+    // Buscar códigos pautais
+    const codigosPautais = await prisma.$queryRaw<any[]>`
       SELECT codigo, descricao FROM codigopautalautorizacao
       WHERE autorizacaoId = ${id}
     `;
     
+    // Obter a descrição dos códigos pautais
+    const descricaoCodigosPautais = Array.isArray(codigosPautais) 
+      ? codigosPautais.map((cp: any) => cp.descricao).join(', ')
+      : '';
+    
     // Formatar os dados para retornar
     const resposta = {
-      id: auth.id,
-      numeroAutorizacao: auth.numeroAutorizacao,
-      tipoAutorizacao: auth.tipoAutorizacao,
-      solicitacaoId: auth.solicitacaoId,
-      entidade: auth.entidadeNome,
-      nif: auth.entidadeNif,
-      numeroFactura: auth.numeroFactura,
-      dataEmissao: auth.dataEmissao,
-      produtos: auth.produtos,
-      quantidade: auth.quantidade,
-      revogado: auth.revogado,
-      dataRevogacao: auth.dataRevogacao,
-      motivoRevogacao: auth.motivoRevogacao,
-      assinadoPor: auth.assinadoPor,
-      codigosPautais: codigosPautais.map((cp) => cp.codigo).join(', '),
+      id: autorizacao.id,
+      numeroAutorizacao: autorizacao.numeroAutorizacao,
+      tipoAutorizacao: autorizacao.tipoAutorizacao,
+      solicitacaoId: autorizacao.solicitacaoId,
+      entidade: autorizacao.entidadeNome,
+      nif: autorizacao.entidadeNif,
+      numeroFactura: autorizacao.numeroFactura,
+      dataEmissao: autorizacao.dataEmissao,
+      produtos: autorizacao.produtos,
+      quantidade: autorizacao.quantidade,
+      revogado: autorizacao.revogado,
+      dataRevogacao: autorizacao.dataRevogacao,
+      motivoRevogacao: autorizacao.motivoRevogacao,
+      assinadoPor: autorizacao.assinadoPor,
+      codigosPautais: codigosPautais.map((cp: any) => cp.codigo).join(', '),
+      descricaoCodigosPautais: descricaoCodigosPautais,
+      numeroProcesso: numeroProcesso,
       codigosPautaisDetalhes: codigosPautais
     };
     

@@ -49,6 +49,7 @@ export default function AutorizacaoPage() {
     quantidades: [1] as number[],
     precos: [0] as number[],
     moeda: '' as string | null,
+    numeroFactura: '',
     documentos: {
       carta: undefined as File | undefined,
       factura: undefined as File | undefined,
@@ -508,6 +509,17 @@ export default function AutorizacaoPage() {
         </Select>
       </div>
 
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-1">Número da Factura</label>
+        <Input
+          type="text"
+          value={form.numeroFactura}
+          onChange={(e) => setForm({ ...form, numeroFactura: e.target.value })}
+          placeholder="Digite o número da factura"
+          className="w-full"
+        />
+      </div>
+
       {form.moeda && (
         <div className="mb-4 p-4 bg-lime-50 border border-lime-200 rounded-xl">
           <label className="block text-sm font-bold mb-1 text-lime-800">Total a Pagar pela Autorização</label>
@@ -579,8 +591,13 @@ export default function AutorizacaoPage() {
         toast.error('Por favor, selecione uma moeda');
         return;
       }
+      if (!form.numeroFactura.trim()) {
+        toast.error('Por favor, digite o número da factura');
+        return;
+      }
       formData.append('moeda', form.moeda.toString());
       formData.append('utenteId', utenteId);
+      formData.append('numeroFactura', form.numeroFactura);
       
       // Adicionar itens (códigos, quantidades e preços)
       formData.append('itens', JSON.stringify(form.codigos.map((c, i) => ({

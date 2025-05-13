@@ -77,13 +77,14 @@ export async function POST(req: NextRequest) {
     const moedaId = formData.get("moeda");
     const utenteId = formData.get("utenteId");
     const itensJson = formData.get("itens");
+    const numeroFactura = formData.get("numeroFactura");
 
-    console.log('Dados recebidos:', { tipo, moedaId, utenteId, itensJson });
+    console.log('Dados recebidos:', { tipo, moedaId, utenteId, itensJson, numeroFactura });
 
-    if (!tipo || !moedaId || !utenteId || !itensJson) {
+    if (!tipo || !moedaId || !utenteId || !itensJson || !numeroFactura) {
       return NextResponse.json({
         error: "Dados incompletos",
-        details: { tipo, moedaId, utenteId, itensJson }
+        details: { tipo, moedaId, utenteId, itensJson, numeroFactura }
       }, { status: 400 });
     }
 
@@ -194,6 +195,7 @@ export async function POST(req: NextRequest) {
         utenteId: Number(utenteId),
         moedaId: Number(moedaId),
         valorTotalKz,
+        numeroFactura: numeroFactura as string,
         status: "Pendente",
         createdAt: new Date(),
         updatedAt: new Date()

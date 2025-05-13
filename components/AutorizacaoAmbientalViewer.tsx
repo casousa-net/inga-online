@@ -207,7 +207,7 @@ const AutorizacaoAmbientalViewer: React.FC<AutorizacaoAmbientalViewerProps> = ({
               <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-md">
                 <h3 className="font-semibold mb-2">Autorização Ambiental Gerada</h3>
                 <p className="text-sm mb-1">
-                  <span className="font-medium">Número:</span> PA {autorizacao.numeroAutorizacao}
+                  <span className="font-medium">Número:</span> PA {autorizacao.numeroProcesso}
                 </p>
                 <p className="text-sm mb-1">
                   <span className="font-medium">Tipo:</span> {autorizacao.tipoAutorizacao}
@@ -223,7 +223,7 @@ const AutorizacaoAmbientalViewer: React.FC<AutorizacaoAmbientalViewerProps> = ({
               <div className="flex justify-center">
                 <AutorizacaoAmbientalDownload 
                   data={autorizacao} 
-                  fileName={`autorizacao-ambiental-${autorizacao.numeroAutorizacao}.pdf`}
+                  fileName={`autorizacao-ambiental-${autorizacao.numeroProcesso}.pdf`}
                 />
               </div>
             </div>
