@@ -99,10 +99,23 @@ model utente {
   email                  String                   @unique(map: "Utente_email_key")
   senha                  String
   role                   utente_role              @default(utente)
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime
   departamento           String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
   solicitacaoautorizacao solicitacaoautorizacao[]
+  historicoNiveis        historicoNivel[]
+}
+
+model historicoNivel {
+  id              Int       @id @default(autoincrement())
+  utenteId        Int
+  nivel           String
+  area            String
+  dataAlteracao   DateTime  @default(now())
+  motivoAlteracao String
+  utente          utente    @relation(fields: [utenteId], references: [id])
+
+  @@index([utenteId])
 }
 
 model codigopautalautorizacao {

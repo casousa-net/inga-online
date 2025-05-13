@@ -187,17 +187,34 @@ export default function ProcessoDetalhesPage() {
 
   // Função para calcular a taxa conforme as regras do sistema
   const calcularTaxa = (valor: number, taxaPersonalizada?: number): { valor: number; percentagem: number } => {
+    let taxaCalculada;
+    
     // Se houver uma taxa personalizada definida no código pautal, usar essa
     if (taxaPersonalizada !== undefined && taxaPersonalizada > 0) {
-      return { valor: valor * (taxaPersonalizada / 100), percentagem: taxaPersonalizada };
+      taxaCalculada = { valor: valor * (taxaPersonalizada / 100), percentagem: taxaPersonalizada };
+    } else {
+      // Caso contrário, usar a tabela de taxas padrão
+      if (valor <= 6226000) {
+        taxaCalculada = { valor: valor * 0.006, percentagem: 0.6 };
+      } else if (valor <= 25000000) {
+        taxaCalculada = { valor: valor * 0.004, percentagem: 0.4 };
+      } else if (valor <= 62480000) {
+        taxaCalculada = { valor: valor * 0.003, percentagem: 0.3 };
+      } else if (valor <= 249040000) {
+        taxaCalculada = { valor: valor * 0.002, percentagem: 0.2 };
+      } else {
+        taxaCalculada = { valor: valor * 0.001, percentagem: 0.1 };
+      }
     }
-
-    // Caso contrário, usar a tabela de taxas padrão
-    if (valor <= 6226000) return { valor: valor * 0.006, percentagem: 0.6 };
-    if (valor <= 25000000) return { valor: valor * 0.004, percentagem: 0.4 };
-    if (valor <= 62480000) return { valor: valor * 0.003, percentagem: 0.3 };
-    if (valor <= 249040000) return { valor: valor * 0.002, percentagem: 0.2 };
-    return { valor: valor * 0.0018, percentagem: 0.18 };
+    
+    // Aplicar o valor mínimo de 2,000 KZ
+    if (taxaCalculada.valor < 2000) {
+      taxaCalculada.valor = 2000;
+      // Recalcular a percentagem baseada no valor mínimo
+      taxaCalculada.percentagem = (2000 / valor) * 100;
+    }
+    
+    return taxaCalculada;
   };
 
   // Função para calcular a base de taxa de um item

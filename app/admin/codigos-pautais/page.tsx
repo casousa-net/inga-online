@@ -141,7 +141,7 @@ export default function CodigosPautaisPage() {
         
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-lime-500 hover:bg-lime-600">
               <Plus className="w-4 h-4 mr-2" />
               Novo Código
             </Button>
@@ -177,7 +177,7 @@ export default function CodigosPautaisPage() {
               <DialogClose asChild>
                 <Button variant="outline">Cancelar</Button>
               </DialogClose>
-              <Button onClick={handleAddSubmit}>Adicionar</Button>
+              <Button className="bg-lime-500 hover:bg-lime-600" onClick={handleAddSubmit}>Adicionar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

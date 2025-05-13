@@ -60,7 +60,7 @@ export default function ColaboradoresPage() {
   );
 
   return (
-    <div className="w-full min-h-screen pt-12 px-4 text-sm">
+    <div className="w-full text-sm">
       <h1 className="text-2xl font-bold mb-6 text-primary">Colaboradores</h1>
       <div className="flex flex-wrap gap-4 mb-6 items-end">
         <input
