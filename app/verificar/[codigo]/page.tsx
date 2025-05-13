@@ -54,7 +54,7 @@ export default function VerificacaoPage({ params }: VerificacaoProps) {
 
   const formatarData = (dataString: string) => {
     const data = new Date(dataString);
-    return format(data, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+    return format(data, "dd 'de' MMMM 'de' yyyy 'às' HH:mm:ss", { locale: ptBR });
   };
 
   if (loading) {

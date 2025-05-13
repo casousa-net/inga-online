@@ -178,10 +178,10 @@ export default function AutorizacaoDetalhesPage({ params }: { params: Promise<{ 
         <div className="flex justify-between items-start mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Processo PA-{String(autorizacao.id).padStart(6, "0")}
+              PA-{String(autorizacao.id).padStart(6, "0")}
             </h1>
             <p className="text-gray-600">
-              Criado em {format(new Date(autorizacao.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              Criado em {format(new Date(autorizacao.createdAt), "dd 'de' MMMM 'de' yyyy 'às' HH:mm:ss", { locale: ptBR })}
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
