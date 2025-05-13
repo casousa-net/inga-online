@@ -38,6 +38,15 @@ export async function GET(
       }
     });
 
+    // Buscar os validadores usando SQL direto para evitar problemas de tipagem
+    const validadores = await prisma.$queryRaw`
+      SELECT tecnicoValidador, chefeValidador, direcaoValidador
+      FROM solicitacaoautorizacao
+      WHERE id = ${id}
+    ` as { tecnicoValidador: string | null, chefeValidador: string | null, direcaoValidador: string | null }[];
+
+    const validadoresInfo = validadores[0] || {};
+
     if (!solicitacao) {
       return NextResponse.json(
         { error: 'Solicitação não encontrada' },
@@ -48,8 +57,15 @@ export async function GET(
     // Mapear os campos para garantir compatibilidade com o frontend
     const mappedResponse = {
       ...solicitacao,
+      tecnicoValidador: validadoresInfo.tecnicoValidador,
+      chefeValidador: validadoresInfo.chefeValidador,
+      direcaoValidador: validadoresInfo.direcaoValidador,
       itens: solicitacao.solicitacaoitem.map(item => ({
-        ...item,
+        id: item.id,
+        descricao: item.descricao,
+        quantidade: item.quantidade,
+        valorUnitario: item.valorUnitario,
+        valorTotal: item.valorTotal,
         codigoPautal: item.codigopautal
       })),
       documentos: solicitacao.documentosolicitacao

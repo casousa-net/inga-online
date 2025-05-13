@@ -29,12 +29,16 @@ export async function POST(
       );
     }
 
+    // Buscar o nome do técnico logado do localStorage
+    const { nome } = body;
+
     // Atualizar a solicitação usando SQL direto para contornar restrições de tipo
     await prisma.$executeRaw`
       UPDATE solicitacaoautorizacao 
       SET validadoPorTecnico = 1, 
           observacoes = ${observacoes || null},
-          tecnicoId = 1
+          tecnicoId = 1,
+          tecnicoValidador = ${nome}
       WHERE id = ${id}
     `;
     

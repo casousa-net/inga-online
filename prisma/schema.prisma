@@ -60,6 +60,9 @@ model solicitacaoautorizacao {
   rupePago             Boolean                @default(false)
   rupeValidado         Boolean                @default(false)
   tecnicoId            Int?
+  tecnicoValidador     String?
+  chefeValidador       String?
+  direcaoValidador     String?
   validadoPorChefe     Boolean                @default(false)
   validadoPorTecnico   Boolean                @default(false)
   autorizacao          autorizacao?

@@ -198,14 +198,23 @@ export async function POST(
 
     console.log('Códigos pautais criados:', codigosPautais);
 
-    // Atualizar a solicitação
-    const updatedSolicitacao = await prisma.solicitacaoautorizacao.update({
-      where: { id },
-      data: {
-        aprovadoPorDirecao: true,
-        status: 'Aprovado',
-        dataAprovacao: dataEmissao
-      },
+    // Buscar o nome do diretor logado do body
+    const requestBody = await request.json();
+    const { nome } = requestBody;
+
+    // Atualizar a solicitação usando SQL direto para contornar restrições de tipo
+    await prisma.$executeRaw`
+      UPDATE solicitacaoautorizacao 
+      SET aprovadoPorDirecao = 1,
+          status = 'Aprovado',
+          dataAprovacao = ${dataEmissao},
+          direcaoValidador = ${nome}
+      WHERE id = ${id}
+    `;
+
+    // Buscar a solicitação atualizada
+    const updatedSolicitacao = await prisma.solicitacaoautorizacao.findUnique({
+      where: { id }
     });
 
     return NextResponse.json({

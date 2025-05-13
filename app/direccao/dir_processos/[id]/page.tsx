@@ -21,6 +21,7 @@ type Solicitacao = {
   validadoPorChefe?: boolean;
   tecnicoValidador?: string;
   chefeValidador?: string;
+  direcaoValidador?: string;
   rupePago?: boolean;
   rupeValidado?: boolean;
   aprovadoPorDirecao?: boolean;
@@ -107,13 +108,17 @@ export default function ProcessoDetalhesPage() {
 
     try {
       setAprovando(true);
+      // Buscar o nome do diretor do localStorage
+      const nome = localStorage.getItem('userName');
+
       const response = await fetch(`/api/solicitacoes/${solicitacao.id}/aprovar-direcao`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          numeroFactura: numeroFactura.trim()
+          numeroFactura: numeroFactura.trim(),
+          nome
         })
       });
 
@@ -405,7 +410,9 @@ export default function ProcessoDetalhesPage() {
               <p className="mt-2 font-medium">Validado por Técnico</p>
               <p className="text-sm text-gray-500">
                 {solicitacao.validadoPorTecnico
-                  ? solicitacao.tecnicoValidador || 'Validado'
+                  ? solicitacao.tecnicoValidador
+                    ? `Validado por ${solicitacao.tecnicoValidador}`
+                    : 'Validado'
                   : 'Não'}
               </p>
             </div>
@@ -417,7 +424,9 @@ export default function ProcessoDetalhesPage() {
               <p className="mt-2 font-medium">Validado por Chefe</p>
               <p className="text-sm text-gray-500">
                 {solicitacao.validadoPorChefe
-                  ? solicitacao.chefeValidador || 'Validado'
+                  ? solicitacao.chefeValidador
+                    ? `Validado por ${solicitacao.chefeValidador}`
+                    : 'Validado'
                   : 'Não'}
               </p>
             </div>
@@ -427,7 +436,13 @@ export default function ProcessoDetalhesPage() {
                 <CheckCircle className="h-6 w-6" />
               </div>
               <p className="mt-2 font-medium">Aprovado pela Direção</p>
-              <p className="text-sm text-gray-500">{solicitacao.aprovadoPorDirecao ? 'Sim' : 'Não'}</p>
+              <p className="text-sm text-gray-500">
+                {solicitacao.aprovadoPorDirecao
+                  ? solicitacao.direcaoValidador
+                    ? `Aprovado por ${solicitacao.direcaoValidador}`
+                    : 'Aprovado'
+                  : 'Não'}
+              </p>
             </div>
           </div>
         </TabsContent>

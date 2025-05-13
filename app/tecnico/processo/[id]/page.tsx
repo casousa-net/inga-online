@@ -95,12 +95,15 @@ export default function ProcessoPage() {
     try {
       setValidando(true);
       
+      // Buscar o nome do técnico do localStorage
+      const nome = localStorage.getItem('userName');
+
       const response = await fetch(`/api/solicitacoes/${solicitacao.id}/validar-tecnico`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ observacoes })
+        body: JSON.stringify({ observacoes, nome })
       });
       
       if (!response.ok) {

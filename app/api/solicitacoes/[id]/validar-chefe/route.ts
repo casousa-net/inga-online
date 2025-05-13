@@ -31,6 +31,9 @@ export async function POST(
 
     // Não é mais necessário verificar se já foi validada pelo técnico
 
+    // Buscar o nome do chefe logado do body
+    const { nome } = body;
+
     // Atualizar a solicitação usando SQL direto para contornar restrições de tipo
     const dataValidacao = new Date().toISOString().slice(0, 19).replace('T', ' ');
     
@@ -42,6 +45,7 @@ export async function POST(
           status = 'Valido_RUPE',
           observacoes = ${observacoes || null},
           chefeId = 1,
+          chefeValidador = ${nome},
           updatedAt = ${dataValidacao}
       WHERE id = ${id}
     `;

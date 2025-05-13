@@ -227,12 +227,15 @@ export default function ProcessoPage() {
       setValidando(true);
       console.log('Iniciando validação do processo:', solicitacao.id);
       
+      // Buscar o nome do chefe do localStorage
+      const nome = localStorage.getItem('userName');
+
       const response = await fetch(`/api/solicitacoes/${solicitacao.id}/validar-chefe`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ observacoes })
+        body: JSON.stringify({ observacoes, nome })
       });
       
       console.log('Status da resposta:', response.status);
