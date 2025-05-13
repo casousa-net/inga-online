@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/20/solid';
 
-type DashboardData = {
+interface DashboardData {
   totalColaboradores: number;
   totalUtentes: number;
   processosPendentes: {
@@ -50,6 +50,10 @@ type DashboardData = {
       total_solicitacoes: number;
     }>;
   };
+  distribuicaoProcessos: Array<{
+    name: string;
+    value: number;
+  }>;
 };
 
 export default function DireccaoHome() {
@@ -84,7 +88,12 @@ export default function DireccaoHome() {
     topUtentes: {
       mes: [],
       ano: []
-    }
+    },
+    distribuicaoProcessos: [
+      { name: 'Importação', value: 65 },
+      { name: 'Exportação', value: 25 },
+      { name: 'Reexportação', value: 10 }
+    ]
   };
 
   useEffect(() => {
@@ -533,7 +542,7 @@ export default function DireccaoHome() {
           </div>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart 
-              data={[
+              data={data.distribuicaoProcessos || [
                 { name: 'Importação', value: 65 },
                 { name: 'Exportação', value: 25 },
                 { name: 'Reexportação', value: 10 }
