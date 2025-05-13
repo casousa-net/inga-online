@@ -194,9 +194,14 @@ export default function ProcessoPage() {
   };
   
   // Calcular o total de taxas
-  const valorTotalTaxas = solicitacao.itens?.reduce((total, item) => {
+  let valorTotalTaxas = solicitacao.itens?.reduce((total, item) => {
     return total + calcularValorTaxa(item);
   }, 0) || 0;
+
+  // Aplicar valor mínimo se necessário
+  if (valorTotalTaxas < 2000) {
+    valorTotalTaxas = 2000;
+  }
 
   const formatarNumero = (valor: number): string => {
     return valor.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');

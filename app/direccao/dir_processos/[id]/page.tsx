@@ -3,11 +3,13 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { FileText, ImageIcon, FileIcon, Upload, User, Package, CheckCircle, Ban, FileX, ChevronLeft, Clock, AlertCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { FileText, ImageIcon, FileIcon, Upload, User, Package, CheckCircle, Ban, FileX, ChevronLeft, Clock, AlertCircle, XCircle, Download, Loader2 } from "lucide-react";
 
 type Solicitacao = {
   id: number;
@@ -64,8 +66,10 @@ export default function ProcessoDetalhesPage() {
   const [loading, setLoading] = useState(true);
   const [aprovando, setAprovando] = useState(false);
   const [rejeitando, setRejeitando] = useState(false);
-  const [motivoRejeicao, setMotivoRejeicao] = useState("");
+  const [motivoRejeicao, setMotivoRejeicao] = useState('');
   const [showRejeicaoModal, setShowRejeicaoModal] = useState(false);
+  const [numeroFactura, setNumeroFactura] = useState('');
+  const [showAprovacaoModal, setShowAprovacaoModal] = useState(false);
 
   useEffect(() => {
     const fetchSolicitacao = async () => {
@@ -88,35 +92,51 @@ export default function ProcessoDetalhesPage() {
     }
   }, [params.id]);
 
+  const abrirModalAprovacao = () => {
+    setShowAprovacaoModal(true);
+  };
+
   const aprovarProcesso = async () => {
     if (!solicitacao) return;
-    
+
+    // Verificar se o número da fatura foi informado
+    if (!numeroFactura.trim()) {
+      alert('Por favor, informe o número da fatura.');
+      return;
+    }
+
     try {
       setAprovando(true);
       const response = await fetch(`/api/solicitacoes/${solicitacao.id}/aprovar-direcao`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          numeroFactura: numeroFactura.trim()
+        })
       });
-      
+
       if (!response.ok) {
         throw new Error('Falha ao aprovar processo');
       }
-      
+
       const data = await response.json();
-      
+
+      // Fechar o modal
+      setShowAprovacaoModal(false);
+
       // Atualizar o estado local
       setSolicitacao(prev => prev ? { ...prev, aprovadoPorDirecao: true, status: 'Aprovado' } : null);
-      
+
       // Mostrar mensagem de sucesso
       alert('Processo aprovado com sucesso!');
-      
+
       // Redirecionar para a lista de processos após um breve delay
       setTimeout(() => {
         router.push('/direccao/dir_processos');
       }, 1500);
-      
+
     } catch (error) {
       console.error('Erro ao aprovar processo:', error);
       alert('Erro ao aprovar processo. Tente novamente mais tarde.');
@@ -127,7 +147,7 @@ export default function ProcessoDetalhesPage() {
 
   const rejeitarProcesso = async () => {
     if (!solicitacao || !motivoRejeicao.trim()) return;
-    
+
     try {
       setRejeitando(true);
       const response = await fetch(`/api/solicitacoes/${solicitacao.id}/rejeitar-direcao`, {
@@ -137,19 +157,19 @@ export default function ProcessoDetalhesPage() {
         },
         body: JSON.stringify({ motivoRejeicao })
       });
-      
+
       if (!response.ok) {
         throw new Error('Falha ao rejeitar processo');
       }
-      
+
       // Mostrar mensagem de sucesso
       alert('Processo rejeitado com sucesso.');
-      
+
       // Redirecionar para a lista de processos após um breve delay
       setTimeout(() => {
         router.push('/direccao/dir_processos');
       }, 1500);
-      
+
     } catch (error) {
       console.error('Erro ao rejeitar processo:', error);
       alert('Erro ao rejeitar processo. Tente novamente mais tarde.');
@@ -165,7 +185,7 @@ export default function ProcessoDetalhesPage() {
     if (taxaPersonalizada !== undefined && taxaPersonalizada > 0) {
       return { valor: valor * (taxaPersonalizada / 100), percentagem: taxaPersonalizada };
     }
-    
+
     // Caso contrário, usar a tabela de taxas padrão
     if (valor <= 6226000) return { valor: valor * 0.006, percentagem: 0.6 };
     if (valor <= 25000000) return { valor: valor * 0.004, percentagem: 0.4 };
@@ -176,10 +196,10 @@ export default function ProcessoDetalhesPage() {
 
   // Função para calcular a base de taxa de um item
   const calcularBaseTaxa = (item: any) => {
-    return (item.valorUnitario || 0) * (item.quantidade || 0) * 
+    return (item.valorUnitario || 0) * (item.quantidade || 0) *
       (solicitacao?.moeda?.nome === 'Kwanza' ? 1 : (solicitacao?.moeda?.taxaCambio || 1));
   };
-  
+
   // Função para calcular o valor da taxa de um item
   const calcularValorTaxa = (item: any) => {
     const baseTaxa = calcularBaseTaxa(item);
@@ -189,31 +209,36 @@ export default function ProcessoDetalhesPage() {
   // Calcular o valor total a pagar (incluindo taxas)
   const calcularValorTotalComTaxas = () => {
     if (!solicitacao || !solicitacao.itens) return solicitacao?.valorTotalKz || 0;
-    
+
     let valorTotal = 0;
     let valorTaxasKz = 0;
-    
+
     solicitacao.itens.forEach(item => {
       // Valor total do item (valor unitário * quantidade)
       const valorItemTotal = item.valorUnitario * item.quantidade;
-      
+
       // Calcular taxa para este item
       const taxa = calcularTaxa(valorItemTotal, item.codigoPautal?.taxa);
-      
+
       // Adicionar valor do item ao total
       valorTotal += valorItemTotal;
-      
+
       // Adicionar valor da taxa em KZ ao total de taxas
       valorTaxasKz += taxa.valor;
     });
-    
+
     // Converter o valor total para KZ usando a taxa de câmbio
     const valorTotalKz = valorTotal * (solicitacao?.moeda?.taxaCambio || 1);
-    
+
+    // Aplicar valor mínimo se necessário
+    if (valorTaxasKz < 2000) {
+      valorTaxasKz = 2000;
+    }
+
     // Valor final a pagar = valor total em KZ + taxas em KZ
     return valorTotalKz + valorTaxasKz;
   };
-  
+
   const valorTotalComTaxas = calcularValorTotalComTaxas();
 
   if (loading) {
@@ -241,9 +266,9 @@ export default function ProcessoDetalhesPage() {
   return (
     <div className="container mx-auto">
       <div className="flex items-center mb-6">
-        <Button 
-          variant="ghost" 
-          className="mr-4" 
+        <Button
+          variant="ghost"
+          className="mr-4"
           onClick={() => router.push('/direccao/dir_processos')}
         >
           <ChevronLeft className="mr-2 h-4 w-4" /> Voltar
@@ -254,17 +279,17 @@ export default function ProcessoDetalhesPage() {
         <div className="flex items-center gap-2">
           {solicitacao.status === 'Pagamento_Confirmado' && !solicitacao.aprovadoPorDirecao ? (
             <>
-              <Button 
-                variant="outline" 
-                className="border-red-600 text-red-600 hover:bg-red-50" 
+              <Button
+                variant="outline"
+                className="border-red-600 text-red-600 hover:bg-red-50"
                 onClick={() => setShowRejeicaoModal(true)}
                 disabled={rejeitando}
               >
                 <Ban className="mr-2 h-4 w-4" /> Rejeitar
               </Button>
-              <Button 
-                className="bg-lime-600 hover:bg-lime-700" 
-                onClick={aprovarProcesso}
+              <Button
+                className="bg-lime-600 hover:bg-lime-700"
+                onClick={abrirModalAprovacao}
                 disabled={aprovando}
               >
                 <CheckCircle className="mr-2 h-4 w-4" /> {aprovando ? 'Aprovando...' : 'Aprovar Processo'}
@@ -379,24 +404,24 @@ export default function ProcessoDetalhesPage() {
               </div>
               <p className="mt-2 font-medium">Validado por Técnico</p>
               <p className="text-sm text-gray-500">
-                {solicitacao.validadoPorTecnico 
+                {solicitacao.validadoPorTecnico
                   ? solicitacao.tecnicoValidador || 'Validado'
                   : 'Não'}
               </p>
             </div>
-            
+
             <div className="flex flex-col items-center p-4 border rounded-lg bg-gray-50">
               <div className={`rounded-full p-2 ${solicitacao.validadoPorChefe ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-400'}`}>
                 <CheckCircle className="h-6 w-6" />
               </div>
               <p className="mt-2 font-medium">Validado por Chefe</p>
               <p className="text-sm text-gray-500">
-                {solicitacao.validadoPorChefe 
+                {solicitacao.validadoPorChefe
                   ? solicitacao.chefeValidador || 'Validado'
                   : 'Não'}
               </p>
             </div>
-            
+
             <div className="flex flex-col items-center p-4 border rounded-lg bg-gray-50">
               <div className={`rounded-full p-2 ${solicitacao.aprovadoPorDirecao ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-400'}`}>
                 <CheckCircle className="h-6 w-6" />
@@ -409,7 +434,7 @@ export default function ProcessoDetalhesPage() {
 
         <TabsContent value="itens" className="bg-white p-4 rounded-lg shadow-sm border mt-2">
           <h2 className="text-lg font-semibold mb-3">Itens do Processo</h2>
-          
+
           {solicitacao.itens && solicitacao.itens.length > 0 ? (
             <div className="overflow-x-auto rounded-lg">
               <table className="w-full divide-y divide-gray-200 text-sm">
@@ -478,7 +503,7 @@ export default function ProcessoDetalhesPage() {
 
         <TabsContent value="documentos" className="bg-white p-6 rounded-lg shadow-sm border mt-2">
           <h2 className="text-xl font-semibold mb-4">Documentos Anexados</h2>
-          
+
           {solicitacao.documentos && solicitacao.documentos.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {solicitacao.documentos.map((doc) => (
@@ -492,17 +517,17 @@ export default function ProcessoDetalhesPage() {
                     <h3 className="font-medium text-gray-900 mb-1">{doc.nome}</h3>
                     <p className="text-sm text-gray-500 mb-2">{doc.tipo}</p>
                     <div className="flex space-x-2">
-                      <a 
-                        href={doc.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
+                      <a
+                        href={doc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-sm text-blue-600 hover:text-blue-800"
                       >
                         Visualizar
                       </a>
-                      <a 
-                        href={doc.url} 
-                        download 
+                      <a
+                        href={doc.url}
+                        download
                         className="text-sm text-lime-600 hover:text-lime-800"
                       >
                         Download
@@ -519,7 +544,7 @@ export default function ProcessoDetalhesPage() {
 
         <TabsContent value="rupe" className="bg-white p-6 rounded-lg shadow-sm border mt-2">
           <h2 className="text-xl font-semibold mb-4">Referência Única de Pagamento ao Estado (RUPE)</h2>
-          
+
           {solicitacao.rupeReferencia ? (
             <div className="space-y-6">
               <div className="p-4 border rounded-lg bg-gray-50">
@@ -528,7 +553,7 @@ export default function ProcessoDetalhesPage() {
                   <Badge className="bg-lime-100 text-lime-800 px-3 py-1">Gerado</Badge>
                 </div>
                 <p className="text-lg font-mono font-bold text-gray-900">{solicitacao.rupeReferencia}</p>
-                
+
                 <div className="mt-4 pt-4 border-t">
                   <div className="flex justify-between items-center mb-2">
                     <h3 className="font-medium">Status do Pagamento:</h3>
@@ -541,7 +566,7 @@ export default function ProcessoDetalhesPage() {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="mt-4 pt-4 border-t">
                   <div className="flex justify-between items-center mb-2">
                     <h3 className="font-medium">Validação do Chefe:</h3>
@@ -554,7 +579,7 @@ export default function ProcessoDetalhesPage() {
                     )}
                   </div>
                 </div>
-                
+
                 {solicitacao.rupeDocumento && (
                   <div className="mt-4 pt-4 border-t">
                     <h3 className="font-medium mb-2">Documento RUPE:</h3>
@@ -563,17 +588,17 @@ export default function ProcessoDetalhesPage() {
                       <div>
                         <p className="text-sm font-medium">RUPE_{solicitacao.id}.pdf</p>
                         <div className="flex space-x-2 mt-1">
-                          <a 
-                            href={solicitacao.rupeDocumento} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
+                          <a
+                            href={solicitacao.rupeDocumento}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="text-sm text-blue-600 hover:text-blue-800"
                           >
                             Visualizar
                           </a>
-                          <a 
-                            href={solicitacao.rupeDocumento} 
-                            download 
+                          <a
+                            href={solicitacao.rupeDocumento}
+                            download
                             className="text-sm text-lime-600 hover:text-lime-800"
                           >
                             Download
@@ -596,43 +621,98 @@ export default function ProcessoDetalhesPage() {
       </Tabs>
 
       {/* Modal de Rejeição */}
-      {showRejeicaoModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Rejeitar Processo</h2>
-            <p className="mb-4 text-gray-600">Por favor, informe o motivo da rejeição deste processo:</p>
-            
-            <div className="mb-4">
-              <Label htmlFor="motivoRejeicao" className="block mb-2">Motivo da Rejeição</Label>
-              <textarea
-                id="motivoRejeicao"
-                className="w-full p-2 border rounded-md"
-                rows={4}
+      <Dialog open={showRejeicaoModal} onOpenChange={setShowRejeicaoModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeitar Processo</DialogTitle>
+            <DialogDescription>
+              Por favor, informe o motivo da rejeição:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="motivo">Motivo da Rejeição</Label>
+              <Textarea
+                id="motivo"
                 value={motivoRejeicao}
-                onChange={(e) => setMotivoRejeicao(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMotivoRejeicao(e.target.value)}
                 placeholder="Descreva o motivo da rejeição..."
+                className="min-h-[100px]"
               />
             </div>
-            
-            <div className="flex justify-end space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowRejeicaoModal(false)}
-                disabled={rejeitando}
-              >
-                Cancelar
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={rejeitarProcesso}
-                disabled={!motivoRejeicao.trim() || rejeitando}
-              >
-                {rejeitando ? 'Rejeitando...' : 'Confirmar Rejeição'}
-              </Button>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowRejeicaoModal(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={rejeitarProcesso}
+              disabled={rejeitando || !motivoRejeicao.trim()}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {rejeitando ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Rejeitando...
+                </>
+              ) : (
+                'Confirmar Rejeição'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Aprovação */}
+      <Dialog open={showAprovacaoModal} onOpenChange={setShowAprovacaoModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Aprovar Processo</DialogTitle>
+            <DialogDescription>
+              Por favor, informe o número da fatura para gerar a autorização:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="numeroFactura">Número da Fatura</Label>
+              <Input
+                id="numeroFactura"
+                value={numeroFactura}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNumeroFactura(e.target.value)}
+                placeholder="Ex: FT 2024/123"
+              />
+              <p className="text-sm text-gray-500">
+                Este número será incluído na autorização ambiental.
+              </p>
             </div>
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAprovacaoModal(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={aprovarProcesso}
+              disabled={aprovando || !numeroFactura.trim()}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {aprovando ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Aprovando...
+                </>
+              ) : (
+                'Confirmar Aprovação'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

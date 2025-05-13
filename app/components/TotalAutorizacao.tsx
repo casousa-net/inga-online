@@ -30,6 +30,14 @@ const TotalAutorizacao: React.FC<TotalAutorizacaoProps> = ({ codigos, quantidade
 
   const totalKz = moedaSelecionada ? total * moedaSelecionada.taxaCambio : total;
 
+  // Aplicar valor mínimo se necessário
+  let totalCobrar = totalKz;
+  let minAplicado = false;
+  if (totalCobrar < 2000) {
+    totalCobrar = 2000;
+    minAplicado = true;
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex justify-between items-center text-sm">
@@ -38,8 +46,13 @@ const TotalAutorizacao: React.FC<TotalAutorizacaoProps> = ({ codigos, quantidade
       </div>
       <div className="flex justify-between items-center text-sm">
         <span>Total em KZ:</span>
-        <span className="font-semibold">{totalKz.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
+        <span className="font-semibold">{totalCobrar.toLocaleString('pt-AO', { minimumFractionDigits: 2 })}</span>
       </div>
+      {minAplicado && (
+        <div className="text-xs text-gray-500 italic">
+          * Valor mínimo de 2.000 KZ aplicado
+        </div>
+      )}
     </div>
   );
 };

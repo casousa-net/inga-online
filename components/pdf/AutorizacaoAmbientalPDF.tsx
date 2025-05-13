@@ -11,10 +11,34 @@ Font.register({
 
 // Estilos para o PDF
 const styles = StyleSheet.create({
+  logo: {
+    width: 60,
+    height: 60,
+    marginBottom: 10,
+    alignSelf: 'center',
+  },
+  watermarkImage: {
+    width: '50%',
+    opacity: 0.05,
+    alignSelf: 'center',
+  },
+  signatureImage: {
+    width: 150,
+    height: 70,
+    position: 'absolute',
+    top: -20,
+    left: '50%',
+    transform: 'translateX(-65%)',
+    zIndex: 1,
+  },
   page: {
     padding: 30,
     backgroundColor: '#FFFFFF',
     position: 'relative',
+  },
+  content: {
+    marginLeft: 10,
+    marginRight: 10,
   },
   border: {
     position: 'absolute',
@@ -79,15 +103,12 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
   },
-  logo: {
-    width: 60,
-    height: 60,
-  },
+
   title: {
     fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginTop: 5,
+    marginTop: 0,
     fontFamily: 'Times-Roman',
   },
   subtitle: {
@@ -139,21 +160,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Times-Roman',
   },
   signature: {
-    marginTop: 40,
+    marginTop: 30,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    position: 'relative',
+    gap: 0,
   },
-  signatureImage: {
-    width: 170,
-    height: 80,
-  },
+
   signatureName: {
     fontSize: 12,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginTop: 0,
+    marginTop: 10,
     fontFamily: 'Times-Roman',
+    position: 'relative',
+    zIndex: 0,
   },
   qrCode: {
     position: 'absolute',
@@ -176,53 +198,66 @@ const styles = StyleSheet.create({
     bottom: 25,
     left: 30,
     fontSize: 6,
-    color: '#666666',
-    fontFamily: 'Times-Roman',
-    textAlign: 'left',
   },
   watermark: {
     position: 'absolute',
-    top: 0,
+    top: '50%',
     left: 0,
     right: 0,
-    bottom: 0,
+    width: '100%',
+    height: 'auto',
+    transform: 'translateY(-50%)',
     display: 'flex',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0.05,
     zIndex: -2,
   },
-  watermarkImage: {
-    width: 450,
-    opacity: 0.02,
+  qrCodeContainer: {
+    position: 'absolute',
+    bottom: 35,
+    right: 35,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: 100,
   },
 });
 
 // Interface para os dados da autorização
 export interface AutorizacaoAmbientalData {
-  tipoAutorizacao: 'IMPORTAÇÃO' | 'EXPORTAÇÃO' | 'REEXPORTAÇÃO';
+  id?: number; // ID da autorização
+  tipoAutorizacao: string;
   entidade: string;
   nif: string;
-  numeroFactura: string;
+  numeroFactura?: string;
   produtos: string;
   quantidade: string;
-  codigosPautais: string;
+  codigosPautais?: string;
+  descricaoCodigosPautais?: string;
   dataEmissao: Date;
   numeroAutorizacao: string;
+  numeroProcesso?: string; // Número do processo (PA)
 }
 
-interface AutorizacaoAmbientalPDFProps {
+export interface AutorizacaoAmbientalPDFProps {
   data: AutorizacaoAmbientalData;
   logoUrl?: string;
   assinaturaUrl?: string;
+  qrCodeUrl?: string; // URL para o QR Code já gerado
 }
 
 // Componente do PDF
-const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({ 
-  data, 
-  logoUrl = '/assets/pdf/logo-angola.png',
-  assinaturaUrl = '/assets/pdf/assinatura.png'
-}) => {
+const AutorizacaoAmbientalPDF = ({
+  data,
+  logoUrl = 'http://localhost:3000/assets/pdf/logo-angola.png',
+  assinaturaUrl = 'http://localhost:3000/assets/pdf/assinatura.png',
+  qrCodeUrl = ''
+}: AutorizacaoAmbientalPDFProps) => {
   const dataFormatada = format(data.dataEmissao, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+
+  // URL padrão para verificação
+  const verificacaoUrl = `https://inga.gov.ao/verificar/${data.numeroAutorizacao}`;
 
   return (
     <Document>
@@ -239,108 +274,108 @@ const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({
         {/* Marca d'água */}
         <View style={styles.watermark}>
           <Image
-            src="/assets/pdf/logo-inga.png"
+            src="http://localhost:3000/assets/pdf/logo-inga.png"
             style={styles.watermarkImage}
           />
         </View>
 
-        {/* Cabeçalho */}
-        <View style={styles.header}>
-          <Image
-            src={logoUrl}
-            style={styles.logo}
-          />
-          <Text style={styles.title}>REPÚBLICA DE ANGOLA</Text>
-          <Text style={styles.title}>MINISTERIO DO AMBIENTE</Text>
-          <Text style={styles.title}>INSTITUTO NACIONAL DE GESTÃO AMBIENTAL</Text>
+        <View style={styles.content}>
+          {/* Cabeçalho */}
+          <View style={styles.header}>
+            <Image
+              src={logoUrl}
+              style={styles.logo}
+            />
+            <Text style={styles.title}>REPÚBLICA DE ANGOLA</Text>
+            <Text style={styles.title}>MINISTERIO DO AMBIENTE</Text>
+            <Text style={styles.title}>INSTITUTO NACIONAL DE GESTÃO AMBIENTAL</Text>
 
-          <Text style={styles.autorizacaoTitle}>
-            AUTORIZAÇÃO AMBIENTAL PARA {data.tipoAutorizacao}
+            <Text style={styles.autorizacaoTitle}>
+              AUTORIZAÇÃO AMBIENTAL PARA {data.tipoAutorizacao}
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Informações da Entidade */}
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>ENTIDADE:</Text>
+            <Text style={styles.value}>{data.entidade}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>NIF:</Text>
+            <Text style={styles.value}>{data.nif}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>NÚMERO DE FACTURA:</Text>
+            <Text style={styles.value}>{data.numeroFactura}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>PRODUTOS:</Text>
+            <Text style={styles.value}>{data.descricaoCodigosPautais || data.produtos}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>QUANTIDADE:</Text>
+            <Text style={styles.value}>{data.quantidade}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>CÓDIGOS PAUTAIS:</Text>
+            <Text style={styles.value}>{data.codigosPautais}</Text>
+          </View>
+
+          {/* Texto da Certificação */}
+          <Text style={[styles.paragraph, { textAlign: 'justify' }]}>
+            Certifica-se a Autorização para a {data.tipoAutorizacao.toLowerCase()} de acordo com o Parecer Técnico do Instituto Nacional de
+            Gestão Ambiental.
           </Text>
+
+          <Text style={[styles.paragraph, { textAlign: 'justify' }]}>
+            A empresa deve cumprir durante o período excepcional a adaptação e reconversão industrial em
+            conformidade com a legislação em vigor nos termos do Decreto Presidencial nº 153/11 de 15 de Junho,
+            que aprova o regulamento que estabelece as regras sobre a produção, exportação, reexportação e
+            importação de substâncias, equipamentos e aparelhos possuidores de substâncias que empobrecem a
+            camada de ozono e demais Convenções.
+          </Text>
+
+          <Text style={[styles.paragraph, { textAlign: 'justify' }]}>
+            Este documento deve ser apresentado a versão original correspondente à factura mencionada e tem
+            validade até 180 dias a contar da data da sua emissão.
+          </Text>
+
+          <Text style={[styles.paragraph, { textAlign: 'justify' }]}>
+            As Autoridades Competentes deverão proceder a verificação do código QR para efeitos de confirmação
+            da validade do documento.
+          </Text>
+
+          {/* Rodapé e Assinatura */}
+          <Text style={styles.footer}>
+            <Text style={{ fontWeight: 'bold' }}>INSTITUTO NACIONAL DE GESTÃO AMBIENTAL</Text> em Luanda, aos {dataFormatada}
+          </Text>
+
+          <View style={styles.signature}>
+            <Text style={styles.signatureName}>A DIRECTORA GERAL</Text>
+            <View style={{ height: 65, position: 'relative', marginTop: -5 }}>
+              <Image
+                src={assinaturaUrl}
+                style={styles.signatureImage}
+              />
+            </View>
+            <Text style={[styles.signatureName, { marginTop: -30 }]}>SIMONE DA SILVA</Text>
+          </View>
         </View>
-
-        <View style={styles.divider} />
-
-        {/* Informações da Entidade */}
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>ENTIDADE:</Text>
-          <Text style={styles.value}>{data.entidade}</Text>
+        {/* QR Code - Temporariamente removido */}
+        <View style={styles.qrCodeContainer}>
+          <Text style={styles.qrCodeText}>Verifique a autenticidade em: inga.gov.ao/verificar/{data.numeroProcesso}</Text>
         </View>
+        <Text style={styles.qrCodeText}>{data.numeroProcesso}</Text>
 
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>NÚMERO DE IDENTIFICAÇÃO FISCAL:</Text>
-          <Text style={styles.value}>{data.nif}</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>NÚMERO DA FACTURA:</Text>
-          <Text style={styles.value}>{data.numeroFactura}</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>PRODUTOS:</Text>
-          <Text style={styles.value}>{data.produtos}</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>QUANTIDADE:</Text>
-          <Text style={styles.value}>{data.quantidade}</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>HS CODES:</Text>
-          <Text style={styles.value}>{data.codigosPautais}</Text>
-        </View>
-
-        {/* Texto da Certificação */}
-        <Text style={[styles.paragraph, { textAlign: 'justify' }]}>
-          Certifica-se a Autorização para a {data.tipoAutorizacao.toLowerCase()} de acordo com o Parecer Técnico do Instituto Nacional de
-          Gestão Ambiental.
-        </Text>
-
-        <Text style={[styles.paragraph, { textAlign: 'justify' }]}>
-          A empresa deve cumprir durante o período excepcional a adaptação e reconversão industrial em
-          conformidade com a legislação em vigor nos termos do Decreto Presidencial nº 153/11 de 15 de Junho,
-          que aprova o regulamento que estabelece as regras sobre a produção, exportação, reexportação e
-          importação de substâncias, equipamentos e aparelhos possuidores de substâncias que empobrecem a
-          camada de ozono e demais Convenções.
-        </Text>
-
-        <Text style={[styles.paragraph, { textAlign: 'justify' }]}>
-          Este documento deve ser apresentado a versão original correspondente à factura mencionada e tem
-          validade até 180 dias a contar da data da sua emissão.
-        </Text>
-
-        <Text style={[styles.paragraph, { textAlign: 'justify' }]}>
-          As Autoridades Competentes deverão proceder a verificação do código QR para efeitos de confirmação
-          da validade do documento.
-        </Text>
-
-        {/* Rodapé e Assinatura */}
-        <Text style={styles.footer}>
-          <Text style={{ fontWeight: 'bold' }}>INSTITUTO NACIONAL DE GESTÃO AMBIENTAL</Text> em Luanda, aos {dataFormatada}
-        </Text>
-
-
-        <View style={styles.signature}>
-          <Text style={styles.signatureName}>A DIRECTORA GERAL</Text>
-          <Image
-            src={assinaturaUrl}
-            style={styles.signatureImage}
-          />
-          <Text style={styles.signatureName}>SIMONE DA SILVA</Text>
-        </View>
-
-        {/* QR Code */}
-        <Image
-          src={`/api/qrcode?text=${data.numeroAutorizacao}`}
-          style={styles.qrCode}
-        />
-        <Text style={styles.qrCodeText}>PA {data.numeroAutorizacao}</Text>
-
-        {/* Assinatura Digital */}
         <Text style={styles.digitalSignature}>
-          Documento assinado digitalmente • Verificar em: inga.gov.ao/verificar/{data.numeroAutorizacao}
+          Documento assinado digitalmente • Verificar em: inga.gov.ao/verificar/{data.numeroProcesso}
         </Text>
       </Page>
     </Document>
