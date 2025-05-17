@@ -1,539 +1,460 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "components/ui/button";
-import { Input } from "components/ui/input";
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "components/ui/select";
-import { Badge } from "components/ui/badge";
-import { CheckCircle, Clock, XCircle, Download, Eye, FileText, AlertTriangle, RefreshCw } from "lucide-react";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "components/ui/table";
-import { FiX } from "react-icons/fi";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "components/ui/card";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useEffect, useState, useCallback } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ToastContainer, toast } from '@/components/ui/use-toast';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Upload, CheckCircle2, XCircle, RotateCw, Send, AlertTriangle, FileText } from 'lucide-react';
 
-// Tipos para períodos de monitorização
-interface Periodo {
+type PeriodoMonitorizacao = {
   id: number;
+  configuracaoId: number;
   numeroPeriodo: number;
   dataInicio: string;
   dataFim: string;
-  estado: "ABERTO" | "FECHADO" | "AGUARDANDO_REAVALIACAO" | "REABERTURA_SOLICITADA";
-}
-
-interface ConfiguracaoMonitorizacao {
-  id: number;
-  tipoPeriodo: "ANUAL" | "SEMESTRAL" | "TRIMESTRAL";
-  dataInicio: string;
-  periodos: Periodo[];
-}
-
-// Dados mockados para demonstração de períodos
-const mockConfiguracao: ConfiguracaoMonitorizacao = {
-  id: 1,
-  tipoPeriodo: "TRIMESTRAL",
-  dataInicio: "2025-01-01T00:00:00.000Z",
-  periodos: [
-    {
-      id: 1,
-      numeroPeriodo: 1,
-      dataInicio: "2025-01-01T00:00:00.000Z",
-      dataFim: "2025-03-31T23:59:59.999Z",
-      estado: "FECHADO"
-    },
-    {
-      id: 2,
-      numeroPeriodo: 2,
-      dataInicio: "2025-04-01T00:00:00.000Z",
-      dataFim: "2025-06-30T23:59:59.999Z",
-      estado: "ABERTO"
-    },
-    {
-      id: 3,
-      numeroPeriodo: 3,
-      dataInicio: "2025-07-01T00:00:00.000Z",
-      dataFim: "2025-09-30T23:59:59.999Z",
-      estado: "FECHADO"
-    },
-    {
-      id: 4,
-      numeroPeriodo: 4,
-      dataInicio: "2025-10-01T00:00:00.000Z",
-      dataFim: "2025-12-31T23:59:59.999Z",
-      estado: "REABERTURA_SOLICITADA"
-    }
-  ]
+  estado: 'ABERTO' | 'FECHADO' | 'AGUARDANDO_REAVALIACAO' | 'REABERTURA_SOLICITADA';
+  monitorizacao?: {
+    id: number;
+    relatorioPath: string;
+    estado: 'PENDENTE' | 'APROVADO' | 'REJEITADO';
+  };
 };
 
-// Dados mockados para monitorização
-const mockMonitorizacoes = [
-  {
-    numero: "MO-000001",
-    data: "2025-05-01",
-    estado: "Aguardando RUPE",
-    rupe: "Sem RUPE",
-    relatorio: "Relatorio1.pdf",
-    parecer: null,
-  },
-  {
-    numero: "MO-000002",
-    data: "2025-04-22",
-    estado: "Aguardando Pagamento",
-    rupe: "123456789012345678901",
-    relatorio: "Relatorio2.pdf",
-    parecer: null,
-  },
-  {
-    numero: "MO-000003",
-    data: "2025-04-10",
-    estado: "Aprovado",
-    rupe: "123456789012345678901",
-    relatorio: "Relatorio3.pdf",
-    parecer: "ParecerTecnico3.pdf",
-  },
-];
+type ConfiguracaoMonitorizacao = {
+  id: number;
+  tipoPeriodo: 'ANUAL' | 'SEMESTRAL' | 'TRIMESTRAL';
+  dataInicio: string;
+};
 
-const estados = ["Aguardando RUPE", "Aguardando Pagamento", "Aprovado", "Rejeitado", "Carece de Melhorias"];
-
-export default function ut_Page() {
-  const [loading, setLoading] = useState(false);
+export default function UtenteMonitorizacao() {
+  const [periodos, setPeriodos] = useState<PeriodoMonitorizacao[]>([]);
   const [configuracao, setConfiguracao] = useState<ConfiguracaoMonitorizacao | null>(null);
-  const [loadingPeriodos, setLoadingPeriodos] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadingPeriodoId, setUploadingPeriodoId] = useState<number | null>(null);
 
-  const router = useRouter();
-  const [showModal, setShowModal] = useState(false);
-  const [filters, setFilters] = useState({
-    estado: '',
-    search: '',
-  });
-  const [form, setForm] = useState({
-    relatorio: null as File | null,
-    periodoId: null as number | null,
-  });
-  
-  useEffect(() => {
-    // Aqui seria feita a chamada à API para buscar a configuração real do utente
-    // Por enquanto, usamos dados mockados
-    setTimeout(() => {
-      setConfiguracao(mockConfiguracao);
-      setLoadingPeriodos(false);
-    }, 500);
+  const formatarData = (data: string) => {
+    try {
+      return format(parseISO(data), 'PP', { locale: ptBR });
+    } catch (e) {
+      return data;
+    }
+  };
+
+  const fetchPeriodos = useCallback(async () => {
+    try {
+      setLoading(true);
+      const utenteId = localStorage.getItem('utenteId');
+      
+      if (!utenteId) {
+        setError('Utilizador não autenticado');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(`/api/monitorizacao/periodos?utenteId=${utenteId}`);
+      
+      if (response.status === 404) {
+        setError('Configuração de monitorização não encontrada. Por favor, contacte o administrador.');
+        setPeriodos([]);
+        setConfiguracao(null);
+        return;
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao carregar períodos de monitorização');
+      }
+      
+      const data = await response.json();
+      setConfiguracao(data.configuracao);
+      setPeriodos(data.periodos || []);
+      setError('');
+    } catch (error) {
+      console.error('Erro ao buscar períodos:', error);
+      setError(error instanceof Error ? error.message : 'Erro ao carregar períodos de monitorização');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const filteredData = mockMonitorizacoes.filter(item =>
-    (filters.estado ? item.estado === filters.estado : true) &&
-    (filters.search ? item.numero.includes(filters.search) : true)
-  );
+  useEffect(() => {
+    fetchPeriodos();
+  }, [fetchPeriodos]);
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, relatorio: e.target.files?.[0] || null });
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setSelectedFile(event.target.files[0]);
+    }
   };
 
-  // Funções para os períodos de monitorização
-  // Função para obter o título do período baseado no número e tipo
-  const getTituloPeriodo = (numeroPeriodo: number, tipoPeriodo: string) => {
-    switch (tipoPeriodo) {
-      case "ANUAL":
-        return "Relatório Anual";
-      case "SEMESTRAL":
-        return `${numeroPeriodo}º Semestre`;
-      case "TRIMESTRAL":
-        return `${numeroPeriodo}º Trimestre`;
+  const handleSubmitRelatorio = async (periodoId: number) => {
+    if (!selectedFile) {
+      toast({
+        title: 'Erro',
+        description: 'Por favor, selecione um arquivo para enviar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setUploadingPeriodoId(periodoId);
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('periodoId', periodoId.toString());
+
+      const response = await fetch('/api/monitorizacao/relatorios', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao enviar relatório');
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: 'Relatório enviado com sucesso!',
+      });
+      
+      await fetchPeriodos();
+      setSelectedFile(null);
+    } catch (error) {
+      console.error('Erro ao enviar relatório:', error);
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Erro ao enviar relatório',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingPeriodoId(null);
+    }
+  };
+
+  const handleReabertura = async (periodoId: number) => {
+    try {
+      const response = await fetch(`/api/monitorizacao/periodos/${periodoId}/reabrir`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao solicitar reabertura');
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: 'Solicitação de reabertura enviada com sucesso!',
+      });
+      
+      await fetchPeriodos();
+    } catch (error) {
+      console.error('Erro ao solicitar reabertura:', error);
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Erro ao solicitar reabertura',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSolicitarReavaliacao = async (periodoId: number) => {
+    try {
+      const response = await fetch(`/api/monitorizacao/periodos/${periodoId}/solicitar-reavaliacao`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao solicitar reavaliação');
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: 'Solicitação de reavaliação enviada com sucesso!',
+      });
+      
+      await fetchPeriodos();
+    } catch (error) {
+      console.error('Erro ao solicitar reavaliação:', error);
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Erro ao solicitar reavaliação',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const renderEstado = (periodo: PeriodoMonitorizacao) => {
+    if (periodo.monitorizacao) {
+      switch (periodo.monitorizacao.estado) {
+        case 'APROVADO':
+          return {
+            icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
+            text: 'Relatório Aprovado',
+            className: 'text-green-700',
+          };
+        case 'REJEITADO':
+          return {
+            icon: <XCircle className="h-5 w-5 text-red-500" />,
+            text: 'Relatório Rejeitado',
+            className: 'text-red-700',
+          };
+        case 'PENDENTE':
+          return {
+            icon: <RotateCw className="h-5 w-5 text-yellow-500 animate-spin" />,
+            text: 'Aguardando Avaliação',
+            className: 'text-yellow-700',
+          };
+      }
+    }
+
+    switch (periodo.estado) {
+      case 'ABERTO':
+        return {
+          icon: <AlertTriangle className="h-5 w-5 text-blue-500" />,
+          text: 'Período Aberto',
+          className: 'text-blue-700',
+        };
+      case 'FECHADO':
+        return {
+          icon: <XCircle className="h-5 w-5 text-gray-500" />,
+          text: 'Período Fechado',
+          className: 'text-gray-700',
+        };
+      case 'AGUARDANDO_REAVALIACAO':
+        return {
+          icon: <RotateCw className="h-5 w-5 text-yellow-500 animate-spin" />,
+          text: 'Aguardando Reavaliação',
+          className: 'text-yellow-700',
+        };
+      case 'REABERTURA_SOLICITADA':
+        return {
+          icon: <AlertTriangle className="h-5 w-5 text-orange-500" />,
+          text: 'Reabertura Solicitada',
+          className: 'text-orange-700',
+        };
       default:
-        return `Período ${numeroPeriodo}`;
+        return {
+          icon: <AlertTriangle className="h-5 w-5 text-gray-500" />,
+          text: 'Desconhecido',
+          className: 'text-gray-700',
+        };
     }
   };
 
-  // Função para formatar a data em formato legível
-  const formatarData = (dataString: string) => {
-    const data = new Date(dataString);
-    return format(data, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-  };
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+      </div>
+    );
+  }
 
-  // Função para obter a cor do badge baseado no estado
-  const getCorBadge = (estado: string) => {
-    switch (estado) {
-      case "ABERTO":
-        return "bg-green-100 text-green-800 border-green-300";
-      case "FECHADO":
-        return "bg-red-100 text-red-800 border-red-300";
-      case "AGUARDANDO_REAVALIACAO":
-        return "bg-yellow-100 text-yellow-800 border-yellow-300";
-      case "REABERTURA_SOLICITADA":
-        return "bg-blue-100 text-blue-800 border-blue-300";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-300";
-    }
-  };
-
-  // Função para obter o ícone baseado no estado
-  const getIconeEstado = (estado: string) => {
-    switch (estado) {
-      case "ABERTO":
-        return <CheckCircle className="text-green-600" size={18} />;
-      case "FECHADO":
-        return <XCircle className="text-red-600" size={18} />;
-      case "AGUARDANDO_REAVALIACAO":
-        return <Clock className="text-yellow-600" size={18} />;
-      case "REABERTURA_SOLICITADA":
-        return <RefreshCw className="text-blue-600" size={18} />;
-      default:
-        return <AlertTriangle className="text-gray-600" size={18} />;
-    }
-  };
-
-  // Função para obter o texto do estado em português
-  const getTextoEstado = (estado: string) => {
-    switch (estado) {
-      case "ABERTO":
-        return "Aberto";
-      case "FECHADO":
-        return "Fechado";
-      case "AGUARDANDO_REAVALIACAO":
-        return "Aguardando Reavaliação";
-      case "REABERTURA_SOLICITADA":
-        return "Reabertura Solicitada";
-      default:
-        return estado;
-    }
-  };
-
-  // Função para lidar com o clique no período
-  const handleClickPeriodo = (periodo: Periodo) => {
-    if (periodo.estado === "ABERTO") {
-      setForm({ ...form, periodoId: periodo.id });
-      setShowModal(true);
-    } else if (periodo.estado === "FECHADO") {
-      // Abrir modal para solicitar reabertura
-      alert("Deseja solicitar a reabertura deste período?");
-    }
-  };
-
-  // Função para solicitar reabertura
-  const solicitarReabertura = (periodoId: number) => {
-    // Aqui seria feita a chamada à API para solicitar a reabertura
-    alert(`Reabertura solicitada para o período ${periodoId}`);
-  };
+  if (error) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg shadow">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <AlertTriangle className="h-5 w-5 text-yellow-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">Atenção</h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>{error}</p>
+              </div>
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  onClick={fetchPeriodos}
+                  className="inline-flex items-center"
+                >
+                  <RotateCw className="mr-2 h-4 w-4" />
+                  Tentar novamente
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 min-h-screen bg-background">
-      {/* Breadcrumbs */}
-      <div className="flex items-center gap-2 mb-6">
-        <span className="text-lime-700 font-semibold">Monitorização</span>
-      </div>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <h1 className="text-3xl font-extrabold text-primary tracking-tight">Monitorização</h1>
-        <Button
-          className="bg-lime-600 hover:bg-lime-700 text-white font-semibold rounded-lg shadow"
-          onClick={() => setShowModal(true)}
-        >
-          + Solicitar Monitorização
+    <div className="container max-w-6xl mx-auto py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl font-bold">Monitorização Ambiental</h1>
+        <Button onClick={fetchPeriodos} variant="outline" size="sm">
+          <RotateCw className="mr-2 h-4 w-4" />
+          Atualizar
         </Button>
       </div>
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-4 mb-6 items-center">
-        <Input
-          placeholder="Buscar Nº Processo"
-          value={filters.search}
-          onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-          className="max-w-xs"
-        />
-        <Select
-          value={filters.estado}
-          onValueChange={v => setFilters(f => ({ ...f, estado: v }))}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Estado" />
-          </SelectTrigger>
-          <SelectContent>
-            {estados.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Button
-          variant="ghost"
-          className="text-gray-500 border border-gray-200 hover:bg-gray-100"
-          onClick={() => setFilters({ estado: '', search: '' })}
-        >
-          Limpar Filtros
-        </Button>
-      </div>
-      {/* Tabela */}
-      <Table className="rounded-xl shadow-md bg-white border border-base-200">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nº Processo</TableHead>
-            <TableHead>Data</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>RUPE</TableHead>
-            <TableHead>Relatório</TableHead>
-            <TableHead>Parecer Técnico</TableHead>
-            <TableHead>Ações</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredData.map(item => (
-            <TableRow key={item.numero} className="hover:bg-base-100 transition">
-              <TableCell className="font-mono">{item.numero}</TableCell>
-              <TableCell>{item.data}</TableCell>
-              <TableCell>
-                <Badge variant={
-                  item.estado === 'Aprovado' ? 'default' :
-                    item.estado === 'Rejeitado' ? 'destructive' :
-                      'secondary'
-                } className="flex items-center gap-1 px-2">
-                  {item.estado === 'Aprovado' && <CheckCircle className="text-green-600" size={16} />}
-                  {item.estado.toLowerCase().includes('aguardando') && <Clock className="text-yellow-500" size={16} />}
-                  {item.estado === 'Rejeitado' && <XCircle className="text-red-500" size={16} />}
-                  {item.estado}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Badge variant={item.rupe !== 'Sem RUPE' ? 'default' : 'secondary'} className="flex items-center gap-1 px-2">
-                  {item.rupe !== 'Sem RUPE' && <CheckCircle className="text-green-600" size={16} />}
-                  {item.rupe === 'Sem RUPE' && <XCircle className="text-red-500" size={16} />}
-                  {item.rupe !== 'Sem RUPE' ? 'Disponível' : 'Sem RUPE'}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Badge variant={item.relatorio ? 'default' : 'secondary'} className="flex items-center gap-1 px-2">
-                  {item.relatorio && <CheckCircle className="text-green-600" size={16} />}
-                  {!item.relatorio && <XCircle className="text-red-500" size={16} />}
-                  {item.relatorio ? 'Disponível' : 'Não enviado'}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Badge variant={item.parecer ? 'default' : 'secondary'} className="flex items-center gap-1 px-2">
-                  {item.parecer && <CheckCircle className="text-green-600" size={16} />}
-                  {!item.parecer && <XCircle className="text-red-500" size={16} />}
-                  {item.parecer ? 'Disponível' : 'Indisponível'}
-                </Badge>
-              </TableCell>
-              <TableCell className="flex gap-2">
-                <Badge variant="secondary" className="flex items-center gap-1 px-2 cursor-pointer" asChild>
-                  <Button size="sm" variant="ghost" onClick={() => {
-                    setLoading(true);
-                    router.push(`/utente/ut_monitorizacao/${item.numero}`);
-                  }}>
-                    <Eye className="text-green-600" size={16} /> Ver Processo
-                  </Button>
-                </Badge>
-                <Badge variant="secondary" className="flex items-center gap-1 px-2 cursor-pointer" asChild>
-                  <Button size="sm" variant="ghost">
-                    <Download className="text-lime-700" size={16} /> Baixar
-                  </Button>
-                </Badge>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
 
-      {/* Seção de Períodos de Monitorização */}
-      <div className="mt-12 mb-8">
-        <h2 className="text-2xl font-bold text-lime-800 mb-6">Períodos para Envio de Relatórios</h2>
-        
-        {loadingPeriodos ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-700 mx-auto mb-4"></div>
-              <p className="text-lime-700 font-medium">Carregando períodos...</p>
-            </div>
-          </div>
-        ) : !configuracao ? (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <div className="flex items-start">
-              <AlertTriangle className="text-yellow-500 mr-3 mt-0.5" size={20} />
+      {configuracao && (
+        <Card className="mb-8">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Configuração de Monitorização</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <h3 className="font-semibold text-yellow-800">Nenhuma configuração de monitorização encontrada</h3>
-                <p className="text-yellow-700 mt-1">
-                  Entre em contato com a administração para configurar seus períodos de monitorização.
+                <p className="text-sm text-muted-foreground">Tipo de Período</p>
+                <p className="font-medium">
+                  {configuracao.tipoPeriodo === 'ANUAL' && 'Anual'}
+                  {configuracao.tipoPeriodo === 'SEMESTRAL' && 'Semestral'}
+                  {configuracao.tipoPeriodo === 'TRIMESTRAL' && 'Trimestral'}
                 </p>
               </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="bg-lime-50 border border-lime-200 rounded-lg p-4 mb-6">
-              <div className="flex items-start">
-                <CheckCircle className="text-lime-600 mr-3 mt-0.5" size={20} />
-                <div>
-                  <h3 className="font-semibold text-lime-800">Periodicidade: {configuracao.tipoPeriodo.charAt(0) + configuracao.tipoPeriodo.slice(1).toLowerCase()}</h3>
-                  <p className="text-lime-700 mt-1">
-                    Você deve enviar seus relatórios de monitorização conforme os períodos abaixo.
-                  </p>
-                </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Data de Início</p>
+                <p className="font-medium">{formatarData(configuracao.dataInicio)}</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {configuracao.periodos.map((periodo) => (
-                <Card 
-                  key={periodo.id} 
-                  className={`border-2 transition-all duration-300 hover:shadow-md ${periodo.estado === "ABERTO" ? "border-green-300" : periodo.estado === "FECHADO" ? "border-red-300" : periodo.estado === "REABERTURA_SOLICITADA" ? "border-blue-300" : "border-yellow-300"}`}
-                >
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xl font-bold text-lime-800">
-                      {getTituloPeriodo(periodo.numeroPeriodo, configuracao.tipoPeriodo)}
-                    </CardTitle>
-                    <CardDescription>
-                      {formatarData(periodo.dataInicio)} até {formatarData(periodo.dataFim)}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Badge 
-                      className={`px-3 py-1 ${getCorBadge(periodo.estado)} flex items-center gap-1.5 mb-4`}
-                    >
-                      {getIconeEstado(periodo.estado)}
-                      {getTextoEstado(periodo.estado)}
-                    </Badge>
-                    
-                    <p className="text-gray-600 text-sm mb-2">
-                      {periodo.estado === "ABERTO" ? (
-                        <>Você pode enviar seu relatório até <span className="font-semibold">{formatarData(periodo.dataFim)}</span></>
-                      ) : periodo.estado === "FECHADO" ? (
-                        <>Este período está fechado. Você pode solicitar a reabertura.</>
-                      ) : periodo.estado === "REABERTURA_SOLICITADA" ? (
-                        <>Aguardando aprovação da solicitação de reabertura.</>
-                      ) : (
-                        <>Seu relatório está sendo reavaliado pela equipe técnica.</>
+      <div className="space-y-6">
+        <h2 className="text-xl font-semibold">Períodos de Monitorização</h2>
+        
+        {periodos.length === 0 ? (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <FileText className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum período encontrado</h3>
+              <p className="mt-1 text-sm text-gray-500">Não há períodos de monitorização disponíveis no momento.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {periodos.map((periodo) => {
+              const estado = renderEstado(periodo);
+              return (
+                <Card key={periodo.id} className="overflow-hidden">
+                  <CardContent className="p-0">
+                    <div className="p-4 border-b flex justify-between items-center">
+                      <div>
+                        <h3 className="font-semibold">
+                          Período {periodo.numeroPeriodo}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {formatarData(periodo.dataInicio)} - {formatarData(periodo.dataFim)}
+                        </p>
+                      </div>
+                      <div className={`flex items-center ${estado.className}`}>
+                        {estado.icon}
+                        <span className="ml-2">{estado.text}</span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-gray-50">
+                      {periodo.estado === 'ABERTO' && (
+                        <div>
+                          <h4 className="font-medium mb-2">Enviar Relatório</h4>
+                          <div className="flex items-end gap-2">
+                            <div className="flex-1">
+                              <Label htmlFor={`file-${periodo.id}`} className="sr-only">
+                                Relatório
+                              </Label>
+                              <Input
+                                id={`file-${periodo.id}`}
+                                type="file"
+                                accept=".pdf,.doc,.docx"
+                                onChange={handleFileChange}
+                                disabled={uploadingPeriodoId === periodo.id}
+                              />
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Formatos aceitos: .pdf, .doc, .docx
+                              </p>
+                            </div>
+                            <Button
+                              onClick={() => handleSubmitRelatorio(periodo.id)}
+                              disabled={!selectedFile || uploadingPeriodoId === periodo.id}
+                            >
+                              {uploadingPeriodoId === periodo.id ? (
+                                <>
+                                  <RotateCw className="mr-2 h-4 w-4 animate-spin" />
+                                  Enviando...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="mr-2 h-4 w-4" />
+                                  Enviar
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
                       )}
-                    </p>
+
+                      {periodo.estado === 'FECHADO' && !periodo.monitorizacao && (
+                        <div className="flex justify-between items-center">
+                          <p className="text-sm text-muted-foreground">
+                            O período está fechado. Entre em contato com o administrador para mais informações.
+                          </p>
+                          <Button
+                            variant="outline"
+                            onClick={() => handleReabertura(periodo.id)}
+                            disabled={periodo.estado === 'REABERTURA_SOLICITADA'}
+                          >
+                            {periodo.estado === 'REABERTURA_SOLICITADA' ? (
+                              'Solicitação de Reabertura Enviada'
+                            ) : (
+                              'Solicitar Reabertura'
+                            )}
+                          </Button>
+                        </div>
+                      )}
+
+                      {periodo.monitorizacao?.estado === 'REJEITADO' && (
+                        <div className="mt-4">
+                          <Alert variant="destructive">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertDescription>
+                              Seu relatório foi rejeitado. Por favor, faça as correções necessárias e envie novamente.
+                            </AlertDescription>
+                          </Alert>
+                          <div className="mt-4">
+                            <Button
+                              variant="outline"
+                              onClick={() => handleSolicitarReavaliacao(periodo.id)}
+                              className="mt-2"
+                            >
+                              Solicitar Reavaliação
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {periodo.monitorizacao?.relatorioPath && (
+                        <div className="mt-4">
+                          <a
+                            href={periodo.monitorizacao.relatorioPath}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 hover:underline flex items-center"
+                          >
+                            <FileText className="mr-2 h-4 w-4" />
+                            Visualizar relatório enviado
+                          </a>
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
-                  <CardFooter>
-                    {periodo.estado === "ABERTO" ? (
-                      <Button 
-                        className="w-full bg-lime-600 hover:bg-lime-700 text-white"
-                        onClick={() => handleClickPeriodo(periodo)}
-                      >
-                        <FileText className="mr-2" size={16} />
-                        Enviar Relatório
-                      </Button>
-                    ) : periodo.estado === "FECHADO" ? (
-                      <Button 
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={() => solicitarReabertura(periodo.id)}
-                      >
-                        <RefreshCw className="mr-2" size={16} />
-                        Solicitar Reabertura
-                      </Button>
-                    ) : periodo.estado === "REABERTURA_SOLICITADA" ? (
-                      <Button 
-                        className="w-full bg-gray-400 hover:bg-gray-500 text-white"
-                        disabled
-                      >
-                        <Clock className="mr-2" size={16} />
-                        Aguardando Aprovação
-                      </Button>
-                    ) : (
-                      <Button 
-                        className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
-                        disabled
-                      >
-                        <Clock className="mr-2" size={16} />
-                        Em Reavaliação
-                      </Button>
-                    )}
-                  </CardFooter>
                 </Card>
-              ))}
-            </div>
-          </>
+              );
+            })}
+          </div>
         )}
       </div>
-
-      {/* Modal Solicitação Monitorização */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-lg min-w-[350px] p-0">
-            <div className="bg-white text-black rounded-3xl shadow-2xl border border-lime-100 p-8 animate-modal-pop relative">
-              <button
-                className="absolute top-3 right-3 text-gray-400 hover:text-lime-700 transition-transform duration-200 ease-in-out hover:scale-125 focus:outline-none"
-                onClick={() => setShowModal(false)}
-                title="Fechar"
-                aria-label="Fechar modal">
-                <span className="inline-block transition-transform duration-300 ease-in-out">
-                  <FiX size={28} />
-                </span>
-              </button>
-              <h2 className="text-2xl font-extrabold mb-6 text-lime-700 tracking-tight animate-fade-down">Solicitar Monitorização</h2>
-              <div className="mb-6 animate-fade-up">
-                <label className="block text-sm font-semibold mb-2 text-gray-700">Relatório (PDF)</label>
-                <Input type="file" accept="application/pdf" onChange={handleUpload} className="file:bg-lime-100 file:text-lime-900 file:rounded-lg file:border-none file:font-semibold file:shadow-sm transition" />
-              </div>
-              {form.periodoId && (
-                <div className="mb-6 animate-fade-up bg-lime-50 p-3 rounded-lg border border-lime-200">
-                  <p className="text-sm text-lime-800">
-                    <span className="font-semibold">Período selecionado:</span> {configuracao?.periodos.find(p => p.id === form.periodoId)?.numeroPeriodo}º {configuracao ? configuracao.tipoPeriodo.charAt(0) + configuracao.tipoPeriodo.slice(1).toLowerCase() : ''}
-                  </p>
-                  <p className="text-xs text-lime-700 mt-1">
-                    Este relatório será associado ao período selecionado.
-                  </p>
-                </div>
-              )}
-              <Button
-                className="w-full bg-lime-600 text-white rounded-xl font-bold shadow-lg hover:bg-lime-700 hover:scale-[1.02] active:scale-95 transition-all duration-200"
-                disabled={!form.relatorio}
-                onClick={() => {
-                  // Aqui seria feita a chamada à API para enviar o relatório
-                  setShowModal(false);
-                  alert("Relatório enviado com sucesso!");
-                }}>
-                Enviar Relatório
-              </Button>
-            </div>
-          </div>
-          <style jsx global>{`
-            .animate-fade-in {
-              animation: fadeInBg 0.35s cubic-bezier(.4,0,.2,1);
-            }
-            .animate-modal-pop {
-              animation: modalPop 0.33s cubic-bezier(.4,0,.2,1);
-            }
-            .animate-fade-down {
-              animation: fadeDown 0.3s 0.05s both;
-            }
-            .animate-fade-up {
-              animation: fadeUp 0.3s 0.12s both;
-            }
-            @keyframes fadeInBg {
-              from { opacity: 0; }
-              to { opacity: 1; }
-            }
-            @keyframes modalPop {
-              from { opacity: 0; transform: scale(0.93) translateY(30px); }
-              to { opacity: 1; transform: scale(1) translateY(0); }
-            }
-            @keyframes fadeDown {
-              from { opacity: 0; transform: translateY(-16px); }
-              to { opacity: 1; transform: translateY(0); }
-            }
-            @keyframes fadeUp {
-              from { opacity: 0; transform: translateY(16px); }
-              to { opacity: 1; transform: translateY(0); }
-            }
-          `}</style>
-        </div>
-      )}
-      {loading && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <span className="inline-block animate-spin-slow">
-            <svg className="w-16 h-16 text-lime-500" fill="none" viewBox="0 0 32 32">
-              <circle className="opacity-20" cx="16" cy="16" r="14" stroke="currentColor" strokeWidth="4" />
-              <path d="M30 16a14 14 0 0 1-14 14" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-            </svg>
-          </span>
-          <style jsx global>{`
-            .animate-spin-slow {
-              animation: spin 1.2s linear infinite;
-            }
-            @keyframes spin {
-              100% { transform: rotate(360deg); }
-            }
-          `}</style>
-        </div>
-      )}
+      <ToastContainer />
     </div>
   );
 }

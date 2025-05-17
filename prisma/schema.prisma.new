@@ -106,6 +106,7 @@ model utente {
   historicoNiveis        historicoNivel[]
   configuracaoMonitorizacao configuracaoMonitorizacao?
   monitorizacoes         monitorizacao[]
+  tecnicoVisitas         visitaMonitorizacao[]   @relation("TecnicoVisitas")
 }
 
 model historicoNivel {
@@ -171,20 +172,43 @@ model periodoMonitorizacao {
   estado          String    // ABERTO, FECHADO, AGUARDANDO_REAVALIACAO, REABERTURA_SOLICITADA
   configuracao    configuracaoMonitorizacao @relation(fields: [configuracaoId], references: [id])
   monitorizacoes  monitorizacao[]
+  visitas         visitaMonitorizacao[]
 }
 
 model monitorizacao {
-  id            Int       @id @default(autoincrement())
-  utenteId      Int
-  periodoId     Int
-  relatorioPath String?
-  estado        String    // PENDENTE, APROVADO, REJEITADO
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  utente        utente    @relation(fields: [utenteId], references: [id])
-  periodo       periodoMonitorizacao @relation(fields: [periodoId], references: [id])
+  id                  Int       @id @default(autoincrement())
+  utenteId            Int
+  periodoId           Int
+  relatorioPath       String?
+  parecerTecnicoPath  String?
+  rupePath            String?
+  rupeReferencia      String?
+  rupePago            Boolean   @default(false)
+  documentoFinalPath  String?
+  estado              String    // PENDENTE, APROVADO, REJEITADO, CARECE_MELHORIAS, FINALIZADO
+  estadoProcesso      String    @default("AGUARDANDO_PARECER") // AGUARDANDO_PARECER, AGUARDANDO_RUPE, AGUARDANDO_PAGAMENTO, AGUARDANDO_VISITA, AGUARDANDO_DOCUMENTO_FINAL, CONCLUIDO
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  utente              utente    @relation(fields: [utenteId], references: [id])
+  periodo             periodoMonitorizacao @relation(fields: [periodoId], references: [id])
+  autorizacaoDirecao  Boolean   @default(false)
 
   @@index([utenteId])
+  @@index([periodoId])
+}
+
+model visitaMonitorizacao {
+  id              Int       @id @default(autoincrement())
+  periodoId       Int
+  dataPrevista    DateTime
+  dataRealizada   DateTime?
+  observacoes     String?
+  tecnicosIds     String    // Armazenado como JSON array de IDs
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  periodo         periodoMonitorizacao @relation(fields: [periodoId], references: [id])
+  tecnicos        utente[]  @relation("TecnicoVisitas")
+
   @@index([periodoId])
 }
 

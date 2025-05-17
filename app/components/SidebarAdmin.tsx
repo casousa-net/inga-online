@@ -1,4 +1,4 @@
-import { Home, UserPlus, Users, UserCog, FileText, LogOut, DollarSign, Package, Settings, User, UserCheck, FileBarChart2 } from "lucide-react";
+import { Home, UserPlus, Users, UserCog, FileText, LogOut, DollarSign, Package, Settings, User, UserCheck } from "lucide-react";
 import Link from "next/link";
 import ActiveLink from "./activeLink";
 import { useState, useEffect } from "react";
@@ -39,16 +39,13 @@ export default function SidebarAdmin() {
           {/* Novos links para configurações */}
           <div className="mt-4 border-t border-gray-700 pt-4">
             <h3 className="text-xs uppercase text-gray-500 font-semibold px-4 mb-2">Configurações do Sistema</h3>
-            <ActiveLink href="/admin/configuracoes-monitorizacao" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
-              <FileBarChart2 size={20} /> Monitorização
-            </ActiveLink>
             <ActiveLink href="/admin/moedas" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
               <DollarSign size={20} /> Moedas e Câmbio
             </ActiveLink>
             <ActiveLink href="/admin/codigos-pautais" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
               <Package size={20} /> Códigos Pautais
             </ActiveLink>
-            <ActiveLink href="/admin/configuracoes" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
+            <ActiveLink href="/admin/configuracoes-monitorizacao" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
               <Settings size={20} /> Outras Definições
             </ActiveLink>
           </div>

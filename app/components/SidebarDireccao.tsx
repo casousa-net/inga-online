@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, User, Folder, BarChart2, LogOut, Home, RefreshCw } from 'lucide-react';
+import { Users, User, Folder, BarChart2, LogOut, Home } from 'lucide-react';
 import ActiveLink from './activeLink';
 import { useState, useEffect } from 'react';
 
@@ -37,9 +37,6 @@ export default function SidebarDireccao() {
 </ActiveLink>
                     <ActiveLink href="/direccao/dir_relatorios" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
     <BarChart2 size={20} /> Relatórios
-</ActiveLink>
-                    <ActiveLink href="/direccao/solicitacoes-reabertura" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
-    <RefreshCw size={20} /> Solicitações de Reabertura
 </ActiveLink>
                 </nav>
             </div>
