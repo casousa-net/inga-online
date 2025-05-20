@@ -1,37 +1,178 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "components/ui/select";
 import { Badge } from "components/ui/badge";
-import { CheckCircle, Clock } from "lucide-react";
+import { CheckCircle, Clock, FileText, AlertTriangle, Download, RefreshCw } from "lucide-react";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { format, parseISO } from 'date-fns';
+import { pt } from 'date-fns/locale';
 
-// Mock data for RUPES
-const mockRupes = [
-  { id: 1, descricao: 'RUPE 001', valor: 1000, status: 'PENDENTE', data: '2025-05-01' },
-  { id: 2, descricao: 'RUPE 002', valor: 2000, status: 'PAGA', data: '2025-04-10' },
-  { id: 3, descricao: 'RUPE 003', valor: 1500, status: 'PENDENTE', data: '2025-03-15' },
-  { id: 4, descricao: 'RUPE 004', valor: 1200, status: 'PAGA', data: '2025-02-20' },
-];
+// Interface para os pagamentos
+interface Pagamento {
+  id: number;
+  tipo: string;
+  descricao: string;
+  valor: number;
+  status: string;
+  validado: boolean;
+  referencia: string;
+  data: string;
+}
+
+interface PagamentosResponse {
+  pagamentos: Pagamento[];
+  total: number;
+  totalPagos: number;
+  totalPendentes: number;
+}
 
 const statusOptions = ['TODOS', 'PENDENTE', 'PAGA'];
 
 export default function Pagamentos() {
   const [statusFiltro, setStatusFiltro] = useState('TODOS');
-  const [rupes, setRupes] = useState(mockRupes);
+  const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({ total: 0, totalPagos: 0, totalPendentes: 0 });
 
-  const rupesFiltradas = statusFiltro === 'TODOS'
-    ? rupes
-    : rupes.filter(r => r.status === statusFiltro);
+  // Função para buscar os pagamentos
+  const fetchPagamentos = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('/api/utente/pagamentos');
+      
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar pagamentos: ${response.status}`);
+      }
+      
+      const data: PagamentosResponse = await response.json();
+      setPagamentos(data.pagamentos);
+      setStats({
+        total: data.total,
+        totalPagos: data.totalPagos,
+        totalPendentes: data.totalPendentes
+      });
+      
+      console.log('Pagamentos carregados:', data.pagamentos.length);
+    } catch (error) {
+      console.error('Erro ao buscar pagamentos:', error);
+      setError('Não foi possível carregar os pagamentos. Tente novamente mais tarde.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Buscar pagamentos ao carregar a página
+  useEffect(() => {
+    fetchPagamentos();
+  }, []);
+
+  // Filtrar pagamentos por status
+  const pagamentosFiltrados = React.useMemo(() => {
+    if (statusFiltro === 'TODOS') return pagamentos;
+    return pagamentos.filter(p => p.status === statusFiltro);
+  }, [pagamentos, statusFiltro]);
+  
+  // Debug: Log dos pagamentos recebidos
+  useEffect(() => {
+    console.log('Pagamentos recebidos:', pagamentos);
+    console.log('Tipos de pagamentos:', [...new Set(pagamentos.map(p => p.tipo))]);
+    console.log('Status atual do filtro:', statusFiltro);
+    console.log('Pagamentos filtrados:', pagamentosFiltrados);
+    
+    // Log detalhado de cada pagamento
+    pagamentos.forEach((p, i) => {
+      console.log(`Pagamento ${i + 1}:`, {
+        tipo: p.tipo,
+        descricao: p.descricao,
+        status: p.status,
+        valor: p.valor,
+        referencia: p.referencia
+      });
+    });
+  }, [pagamentos, statusFiltro, pagamentosFiltrados]);
 
   const gerarRelatorio = () => {
     // Aqui pode implementar exportação para PDF/Excel
     alert('Funcionalidade de relatório a implementar');
   };
 
+  // Função para formatar a data
+  const formatarData = (dataString: string) => {
+    try {
+      return format(parseISO(dataString), 'dd/MM/yyyy', { locale: pt });
+    } catch (error) {
+      return dataString;
+    }
+  };
+
+  // Renderizar estado de carregamento
+  if (loading) {
+    return (
+      <div className="w-full max-w-6xl mx-auto mt-8 flex flex-col items-center justify-center py-12">
+        <Clock className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg text-muted-foreground">Carregando pagamentos...</p>
+      </div>
+    );
+  }
+
+  // Renderizar erro
+  if (error) {
+    return (
+      <div className="w-full max-w-6xl mx-auto mt-8 flex flex-col items-center justify-center py-12">
+        <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+        <p className="text-lg text-muted-foreground mb-4">{error}</p>
+        <Button onClick={fetchPagamentos} variant="outline" className="gap-2">
+          <RefreshCw size={16} />
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-6xl mx-auto mt-8">
       <h1 className="text-3xl font-bold mb-6">Pagamentos</h1>
+      
+      {/* Cards de resumo */}
+      <div className="grid gap-4 md:grid-cols-3 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Pagamentos</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">Pagamentos registrados</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pagamentos Efetuados</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalPagos}</div>
+            <p className="text-xs text-muted-foreground">Pagamentos confirmados</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pagamentos Pendentes</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalPendentes}</div>
+            <p className="text-xs text-muted-foreground">Aguardando pagamento</p>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Filtros e botões */}
       <div className="flex flex-wrap items-center gap-4 mb-6">
         <Select value={statusFiltro} onValueChange={setStatusFiltro}>
           <SelectTrigger className="w-44">
@@ -43,39 +184,65 @@ export default function Pagamentos() {
             ))}
           </SelectContent>
         </Select>
-        <Button className="ml-auto bg-lime-600 hover:bg-lime-700 text-white font-semibold rounded-lg shadow" onClick={gerarRelatorio}>
+        
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className="ml-2" 
+          onClick={fetchPagamentos} 
+          title="Atualizar dados"
+        >
+          <RefreshCw size={16} />
+        </Button>
+        
+        <Button 
+          className="ml-auto bg-lime-600 hover:bg-lime-700 text-white font-semibold rounded-lg shadow flex items-center gap-2" 
+          onClick={gerarRelatorio}
+        >
+          <Download size={16} />
           Gerar Relatório
         </Button>
       </div>
+      
+      {/* Tabela de pagamentos */}
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>ID</TableHead>
             <TableHead>Descrição</TableHead>
+            <TableHead>Referência</TableHead>
             <TableHead>Valor</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Data</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rupesFiltradas.length === 0 ? (
+          {pagamentosFiltrados.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma RUPA encontrada</TableCell>
+              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                {statusFiltro === 'TODOS' ? 
+                  'Nenhum pagamento encontrado' : 
+                  `Nenhum pagamento com status "${statusFiltro}" encontrado`}
+              </TableCell>
             </TableRow>
           ) : (
-            rupesFiltradas.map(r => (
-              <TableRow key={r.id}>
-                <TableCell>{r.id}</TableCell>
-                <TableCell>{r.descricao}</TableCell>
-                <TableCell>{r.valor.toLocaleString('pt-PT', { style: 'currency', currency: 'AOA' })}</TableCell>
+            pagamentosFiltrados.map((pagamento) => (
+              <TableRow key={`${pagamento.tipo}-${pagamento.id}`}>
+                <TableCell>{pagamento.id}</TableCell>
+                <TableCell className="max-w-xs truncate">{pagamento.descricao}</TableCell>
+                <TableCell>{pagamento.referencia}</TableCell>
+                <TableCell>{pagamento.valor.toLocaleString('pt-PT', { style: 'currency', currency: 'AOA' })}</TableCell>
                 <TableCell>
-                  <Badge variant={r.status === 'PAGA' ? 'default' : r.status === 'PENDENTE' ? 'secondary' : 'outline'} className="flex items-center gap-1 px-2">
-                    {r.status === 'PAGA' && <CheckCircle className="text-green-600" size={16} />}
-                    {r.status === 'PENDENTE' && <Clock className="text-yellow-500" size={16} />}
-                    {r.status}
+                  <Badge 
+                    variant={pagamento.status === 'PAGA' ? 'default' : 'secondary'} 
+                    className="flex items-center gap-1 px-2"
+                  >
+                    {pagamento.status === 'PAGA' && <CheckCircle className="text-green-600" size={16} />}
+                    {pagamento.status === 'PENDENTE' && <Clock className="text-yellow-500" size={16} />}
+                    {pagamento.status}
                   </Badge>
                 </TableCell>
-                <TableCell>{r.data}</TableCell>
+                <TableCell>{formatarData(pagamento.data)}</TableCell>
               </TableRow>
             ))
           )}

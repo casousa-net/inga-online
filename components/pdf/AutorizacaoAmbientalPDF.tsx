@@ -2,6 +2,7 @@ import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import QRCode from 'qrcode';
 
 // Registrar fontes
 Font.register({
@@ -24,11 +25,11 @@ const styles = StyleSheet.create({
   },
   signatureImage: {
     width: 150,
-    height: 70,
+    height: 145,
     position: 'absolute',
-    top: -20,
+    top: -30,
     left: '50%',
-    transform: 'translateX(-65%)',
+    transform: 'translateX(-70%)',
     zIndex: 1,
   },
   page: {
@@ -248,16 +249,21 @@ export interface AutorizacaoAmbientalPDFProps {
 }
 
 // Componente do PDF
-const AutorizacaoAmbientalPDF = ({
+const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({
   data,
   logoUrl = 'http://localhost:3000/assets/pdf/logo-angola.png',
   assinaturaUrl = 'http://localhost:3000/assets/pdf/assinatura.png',
-  qrCodeUrl = ''
-}: AutorizacaoAmbientalPDFProps) => {
-  const dataFormatada = format(data.dataEmissao, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+  qrCodeUrl
+}) => {
+  // Gerar URL para verificação
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // Usar o PA (número do processo) para a verificação em vez do ID
+  const numeroProcesso = data.numeroProcesso || `PA-${data.id}`;
+  // Usar o caminho /verificar/[pa] para corresponder ao diretório [pa]
+  const verificationUrl = `${baseUrl}/verificar/${encodeURIComponent(numeroProcesso)}`;
+  const qrCodeImageUrl = qrCodeUrl || `/api/qrcode/${encodeURIComponent(numeroProcesso)}`;
 
-  // URL padrão para verificação
-  const verificacaoUrl = `https://inga.gov.ao/verificar/${data.numeroAutorizacao}`;
+  const dataFormatada = format(data.dataEmissao, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
   return (
     <Document>
@@ -291,7 +297,7 @@ const AutorizacaoAmbientalPDF = ({
             <Text style={styles.title}>INSTITUTO NACIONAL DE GESTÃO AMBIENTAL</Text>
 
             <Text style={styles.autorizacaoTitle}>
-              AUTORIZAÇÃO AMBIENTAL PARA {data.tipoAutorizacao}
+              AUTORIZAÇÃO AMBIENTAL PARA {data.tipoAutorizacao.toUpperCase()}
             </Text>
           </View>
 
@@ -330,7 +336,7 @@ const AutorizacaoAmbientalPDF = ({
 
           {/* Texto da Certificação */}
           <Text style={[styles.paragraph, { textAlign: 'justify' }]}>
-            Certifica-se a Autorização para a {data.tipoAutorizacao.toLowerCase()} de acordo com o Parecer Técnico do Instituto Nacional de
+            Certifica-se a Autorização para a {data.tipoAutorizacao} de acordo com o Parecer Técnico do Instituto Nacional de
             Gestão Ambiental.
           </Text>
 
@@ -358,24 +364,36 @@ const AutorizacaoAmbientalPDF = ({
           </Text>
 
           <View style={styles.signature}>
+            <Image
+              src={assinaturaUrl}
+              style={styles.signatureImage}
+            />
             <Text style={styles.signatureName}>A DIRECTORA GERAL</Text>
             <View style={{ height: 65, position: 'relative', marginTop: -5 }}>
-              <Image
-                src={assinaturaUrl}
-                style={styles.signatureImage}
-              />
+
             </View>
             <Text style={[styles.signatureName, { marginTop: -30 }]}>SIMONE DA SILVA</Text>
           </View>
         </View>
-        {/* QR Code - Temporariamente removido */}
-        <View style={styles.qrCodeContainer}>
-          <Text style={styles.qrCodeText}>Verifique a autenticidade em: inga.gov.ao/verificar/{data.numeroProcesso}</Text>
+        {/* QR Code */}
+        <View style={{
+          position: 'absolute',
+          bottom: 60,
+          right: 40,
+          alignItems: 'center',
+          width: 60
+        }}>
+          <Image
+            src={qrCodeImageUrl}
+            style={{ width: 60, height: 60 }}
+          />
+          <Text style={{ fontSize: 8, marginTop: 3, textAlign: 'center' }}>
+            {numeroProcesso}
+          </Text>
         </View>
-        <Text style={styles.qrCodeText}>{data.numeroProcesso}</Text>
 
         <Text style={styles.digitalSignature}>
-          Documento assinado digitalmente • Verificar em: inga.gov.ao/verificar/{data.numeroProcesso}
+          Documento assinado digitalmente • Verificar em: inga.gov.ao/verificar/{numeroProcesso}
         </Text>
       </Page>
     </Document>
