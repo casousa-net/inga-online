@@ -16,9 +16,89 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import AprovarReaberturaButton from "./components/AprovarReaberturaButton";
 
+interface TecnicoSelecionado {
+  id: number;
+  nome: string;
+}
+
+// Função utilitária para normalizar tecnicosSelecionados
+function normalizeTecnicosSelecionados(tecnicosSelecionados: string | TecnicoSelecionado[] | undefined): { id: number; nome: string }[] {
+  console.log("Normalizando técnicos:", tecnicosSelecionados);
+
+  if (!tecnicosSelecionados) return [];
+
+  // Se for uma string, tentar vários formatos possíveis
+  if (typeof tecnicosSelecionados === 'string') {
+    // Verificar se é um formato "id:nome|id:nome"
+    if (tecnicosSelecionados.includes('|') || tecnicosSelecionados.includes(':')) {
+      console.log("Detectado formato id:nome|id:nome");
+      return tecnicosSelecionados
+        .split('|')
+        .filter(Boolean)
+        .map((tecnicoStr: string) => {
+          const [id, ...nomeParts] = tecnicoStr.split(':');
+          const nome = nomeParts.join(':').trim() || `Técnico ${id}`;
+          return {
+            id: Number(id) || 0,
+            nome: nome
+          };
+        });
+    }
+
+    // Tentar parsear como JSON
+    try {
+      console.log("Tentando parsear como JSON");
+      const parsed = JSON.parse(tecnicosSelecionados);
+      if (Array.isArray(parsed)) {
+        return parsed.map((t: any) => ({
+          id: Number(t.id ?? t.tecnicoId ?? 0),
+          nome: String(t.nome ?? t.label ?? t.name ?? `Técnico ${t.id ?? ''}`)
+        }));
+      }
+    } catch (e) {
+      console.log("Erro ao parsear JSON:", e);
+    }
+
+    // Fallback: pode ser uma lista separada por vírgulas
+    console.log("Usando fallback de lista separada por vírgulas");
+    return tecnicosSelecionados.split(',').map((nome, idx) => ({ id: idx + 1, nome: nome.trim() }));
+  }
+
+  // Se for um array, mapear para o formato correto
+  if (Array.isArray(tecnicosSelecionados)) {
+    console.log("Processando array de técnicos");
+    return tecnicosSelecionados.map((t: any) => {
+      const id = Number(t.id ?? t.tecnicoId ?? 0);
+      const nome = String(t.nome ?? t.label ?? t.name ?? `Técnico ${id}`);
+      console.log(`Técnico processado: id=${id}, nome=${nome}`);
+      return { id, nome };
+    });
+  }
+
+  console.log("Nenhum técnico encontrado");
+  return [];
+}
+
+
 interface Monitorizacao {
   id: number;
   utenteId: number;
+  utente: {
+    nome: string;
+    telefone: string;
+    email: string;
+  };
+  dataVisita?: string | null;
+  dataVisitaRealizada?: string | null;
+  observacoes?: string | null;
+  status: string;
+  documentos: any[];
+  tecnicosSelecionados?: string | TecnicoSelecionado[];
+  createdAt: string;
+  updatedAt: string;
+  departamento: string;
+  documentoFinalUrl?: string | null;
+  documentoFinalName?: string | null;
   periodoId: number;
   relatorioPath: string;
   parecerTecnicoPath: string | null;
@@ -28,7 +108,6 @@ interface Monitorizacao {
   documentoFinalPath: string | null;
   estado: string;
   estadoProcesso: string;
-  createdAt: string;
   autorizacaoDirecao: boolean;
   utenteNome: string;
   utenteNif: string;
@@ -40,7 +119,6 @@ interface Monitorizacao {
   dataPrevistaVisita?: string;
   dataRealizadaVisita?: string;
   relatorioVisitaPath?: string;
-  tecnicosSelecionados?: { id: number; nome: string }[];
   // Campos para reabertura
   periodoEstado?: string;
   motivoReabertura?: string;
@@ -124,7 +202,7 @@ export default function ChefeMonitorizacao() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProcessos, setFilteredProcessos] = useState<Monitorizacao[]>([]);
-  
+
   // Estado para o modal de aprovação de reabertura
   const [isReaberturaDialogOpen, setIsReaberturaDialogOpen] = useState(false);
   const [selectedReaberturaPeriodoId, setSelectedReaberturaPeriodoId] = useState<number | null>(null);
@@ -141,6 +219,75 @@ export default function ChefeMonitorizacao() {
     }
   };
 
+  // Função para processar os técnicos de um processo
+  const processarTecnicos = (processo: Monitorizacao): TecnicoSelecionado[] => {
+    try {
+      if (!processo.tecnicosSelecionados) {
+        return [];
+      }
+
+      // Se for uma string, converter para array de objetos
+      if (typeof processo.tecnicosSelecionados === 'string') {
+        // Verificar se é um JSON string
+        if (processo.tecnicosSelecionados.trim().startsWith('[')) {
+          try {
+            const parsed = JSON.parse(processo.tecnicosSelecionados);
+            if (Array.isArray(parsed)) {
+              return parsed.map((item: any) => ({
+                id: Number(item?.id || 0),
+                nome: String(item?.nome || `Técnico ${item?.id || ''}`)
+              }));
+            }
+          } catch (e) {
+            console.warn('Falha ao fazer parse do JSON de técnicos:', e);
+          }
+        }
+
+        // Se for formato "id:nome|id:nome"
+        if (processo.tecnicosSelecionados.includes('|') || processo.tecnicosSelecionados.includes(':')) {
+          return processo.tecnicosSelecionados
+            .split('|')
+            .filter(Boolean)
+            .map((tecnicoStr: string) => {
+              const [id, ...nomeParts] = tecnicoStr.split(':');
+              const nome = nomeParts.join(':').trim();
+              return {
+                id: Number(id) || 0,
+                nome: nome || `Técnico ${id || ''}`
+              };
+            });
+        }
+
+        // Se for apenas um ID
+        const id = parseInt(processo.tecnicosSelecionados, 10);
+        if (!isNaN(id)) {
+          return [{ id, nome: `Técnico ${id}` }];
+        }
+
+        return [];
+      }
+
+      // Se for um array, mapear para o formato correto
+      if (Array.isArray(processo.tecnicosSelecionados)) {
+        return processo.tecnicosSelecionados.map((tecnico: any) => ({
+          id: Number(tecnico?.id || 0),
+          nome: String(tecnico?.nome || `Técnico ${tecnico?.id || ''}`)
+        }));
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Erro ao processar técnicos:', error);
+      return [];
+    }
+  };
+
+  // Função para renderizar o botão de rejeição
+  const renderRejectButton = (processo: Monitorizacao) => {
+    // Implementação do botão de rejeição
+    return null; // Placeholder - implementar conforme necessário
+  };
+
   // Buscar processos de monitorização
   const fetchProcessos = async () => {
     try {
@@ -151,45 +298,91 @@ export default function ChefeMonitorizacao() {
 
       // Adicionar timestamp para evitar cache e garantir resposta mais recente
       const timestamp = new Date().getTime();
-      const response = await fetch(`/api/monitorizacao/chefe?departamento=${departamento}&t=${timestamp}`, {
+      const url = `/api/monitorizacao/chefe?departamento=${departamento}&t=${timestamp}`;
+      console.log('Endpoint da API:', url);
+
+      // Log para debug
+      console.log('Iniciando fetch com credenciais:', 'include');
+
+      const response = await fetch(url, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache',
           'Expires': '0',
-        }
+        },
+        // Adicionar credenciais para garantir que os cookies sejam enviados
+        credentials: 'include'
       });
 
+      // Log detalhado da resposta para debug
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries([...response.headers]));
+
       if (!response.ok) {
+        // Tentar obter o corpo da resposta como texto para debug
+        const responseText = await response.text();
+        console.error('Resposta de erro (texto):', responseText);
+
         let errorMessage = `Erro do servidor: ${response.status}`;
         try {
-          const errorData = await response.json();
-          console.error('Resposta da API não OK:', response.status, errorData);
-          errorMessage = errorData.message || errorData.error || errorMessage;
+          // Tentar parsear como JSON se possível
+          const errorData = JSON.parse(responseText);
+          console.error('Resposta da API não OK (JSON):', response.status, errorData);
+          errorMessage = errorData.message || errorData.error || errorData.details || errorMessage;
         } catch (parseError) {
-          console.error('Erro ao analisar resposta de erro:', parseError);
+          console.error('Erro ao analisar resposta de erro como JSON:', parseError);
+          // Se não for JSON, usar o texto bruto
+          errorMessage = `${errorMessage} - ${responseText}`;
         }
         throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      // Log para debug
+      console.log('Resposta OK, obtendo JSON...');
+
+      const responseText = await response.text();
+      console.log('Resposta como texto:', responseText.substring(0, 200) + '...');
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonError: unknown) {
+        console.error('Erro ao parsear resposta como JSON:', jsonError);
+        console.error('Conteúdo da resposta:', responseText);
+        throw new Error(`Erro ao parsear resposta da API: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`);
+      }
+
       console.log(`Processos recebidos: ${data.processos ? data.processos.length : 0}`);
+      if (data.processos) {
+        console.log('Amostra dos dados:', JSON.stringify(data.processos[0] || {}, null, 2));
+        
+        // Verificar os dados de técnicos especificamente
+        if (data.processos && data.processos.length > 0) {
+          data.processos.forEach((processo: any, index: number) => {
+            console.log(`Processo ${index} (ID: ${processo.id}) - Técnicos:`, processo.tecnicosSelecionados);
+          });
+        }
+      } else {
+        console.error('Dados recebidos sem processos:', data);
+      }
+
       setProcessos(data.processos || []);
     } catch (error) {
       console.error('Erro ao buscar processos:', error);
-      
+
       // Mensagem de erro mais detalhada
       let errorMessage = "Não foi possível carregar os processos de monitorização.";
       if (error instanceof Error) {
         errorMessage = `Não foi possível carregar os processos: ${error.message}`;
       }
-      
+
       toast({
         title: "Erro",
         description: errorMessage,
         variant: "destructive"
       });
-      
+
       // Definir uma lista vazia para evitar erros na interface
       setProcessos([]);
     } finally {
@@ -202,17 +395,53 @@ export default function ChefeMonitorizacao() {
     fetchProcessos();
   }, []);
 
-  // Função para abrir o diálogo de adicionar RUPE
-  const handleOpenRupeDialog = (processo: Monitorizacao) => {
-    setSelectedProcesso(processo);
-    setRupeReferencia("");
-    setRupeFile(null);
-    setIsRupeDialogOpen(true);
-  };
-
   // Função para abrir o diálogo de documento final
-  const handleOpenDocumentoFinalDialog = (processo: Processo) => {
-    setSelectedDocumentoFinalProcesso(processo);
+  const handleOpenDocumentoFinalDialog = (processo: Monitorizacao) => {
+    console.log("Abrindo diálogo para processo:", processo);
+    
+    // Verificar se o processo já tem documento final
+    if (processo.documentoFinalPath && processo.estadoProcesso === "CONCLUIDO") {
+      toast({
+        title: "Informação",
+        description: "Este processo já possui um documento final anexado."
+      });
+      
+      // Abrir o documento em uma nova aba
+      window.open(`/api/documentos/${processo.documentoFinalPath}`, '_blank');
+      return;
+    }
+    
+    // Converter Monitorizacao para Processo se necessário
+    if (setSelectedDocumentoFinalProcesso) {
+      const processoConvertido: Processo = {
+        id: processo.id,
+        utenteId: processo.utenteId,
+        utenteNome: processo.utenteNome,
+        utenteNif: processo.utenteNif,
+        numeroPeriodo: processo.numeroPeriodo,
+        tipoPeriodo: processo.tipoPeriodo,
+        estadoProcesso: processo.estadoProcesso,
+        createdAt: processo.createdAt,
+        rupePath: processo.rupePath,
+        rupePago: processo.rupePago,
+        dataPrevistaVisita: processo.dataPrevistaVisita,
+        dataVisita: processo.dataVisita,
+        observacoesVisita: processo.observacoes,
+        documentoFinalPath: processo.documentoFinalPath,
+        tecnicosSelecionados: processarTecnicos(processo),
+        periodoId: processo.periodoId,
+        periodoEstado: processo.periodoEstado,
+        motivoReabertura: processo.motivoReabertura,
+        dataSolicitacaoReabertura: processo.dataSolicitacaoReabertura,
+        statusReabertura: processo.statusReabertura
+      };
+      setSelectedDocumentoFinalProcesso(processoConvertido);
+    }
+    
+    // Preparar o diálogo
+    setSelectedProcesso(processo);
+    setDocumentoFinalFile(null);
+    setObservacoes("");
     setIsDocumentoFinalDialogOpen(true);
   };
 
@@ -446,7 +675,7 @@ export default function ChefeMonitorizacao() {
       }
 
       setProcessandoReabertura(true);
-      
+
       const response = await fetch(`/api/monitorizacao/periodos/${selectedReaberturaPeriodoId}`, {
         method: "PATCH",
         headers: {
@@ -472,7 +701,7 @@ export default function ChefeMonitorizacao() {
         title: "Sucesso",
         description: "Reabertura do período aprovada com sucesso"
       });
-      
+
       setIsReaberturaDialogOpen(false);
       setRupeReaberturaNumero("");
       setSelectedReaberturaPeriodoId(null);
@@ -542,6 +771,14 @@ export default function ChefeMonitorizacao() {
     }
   };
 
+  // Função para abrir o diálogo de RUPE
+  const handleOpenRupeDialog = (processo: Monitorizacao) => {
+    setSelectedProcesso(processo);
+    setRupeReferencia("");
+    setRupeFile(null);
+    setIsRupeDialogOpen(true);
+  };
+
   // Função para enviar documento final
   const handleEnviarDocumentoFinal = async () => {
     try {
@@ -574,12 +811,40 @@ export default function ChefeMonitorizacao() {
         return;
       }
 
+      // Ler o corpo da resposta uma única vez
+      const responseData = await response.json();
+      console.log("Resposta do servidor após upload:", responseData);
+      
+      // Atualizar o estado local do processo selecionado para refletir a mudança imediatamente
+      const updatedProcesso = {
+        ...selectedProcesso,
+        estadoProcesso: 'CONCLUIDO',
+        documentoFinalPath: responseData.documentoFinalPath || '/uploads/documentos-finais/documento.pdf'
+      };
+      
+      console.log("Processo atualizado localmente:", updatedProcesso);
+      
+      // Atualizar o estado dos processos localmente
+      setProcessos(prevProcessos => {
+        const updated = prevProcessos.map(p => 
+          p.id === selectedProcesso.id ? updatedProcesso : p
+        );
+        console.log("Lista de processos atualizada:", updated);
+        return updated;
+      });
+      
       toast({
         title: "Sucesso",
         description: "Documento final enviado com sucesso"
       });
+      
       setIsDocumentoFinalDialogOpen(false);
-      fetchProcessos();
+      setDocumentoFinalFile(null);
+      
+      // Buscar dados atualizados do servidor após um pequeno atraso
+      setTimeout(() => {
+        fetchProcessos();
+      }, 1000);
     } catch (error) {
       console.error("Erro ao enviar documento final:", error);
       toast({
@@ -658,19 +923,44 @@ export default function ChefeMonitorizacao() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {processo.tecnicosSelecionados && processo.tecnicosSelecionados.length > 0 ? (
-                        <div className="text-sm">
-                          {processo.tecnicosSelecionados.map((tecnico) => (
-                            <div key={tecnico.id} className="flex items-center gap-1 mb-1">
-                              <Badge variant="outline" className="text-xs py-0 px-1">
-                                {tecnico.nome}
-                              </Badge>
+                      {/* Normalizar tecnicosSelecionados para garantir compatibilidade de tipos */}
+                      {(() => {
+                        // Processar os técnicos apenas uma vez para evitar processamento duplicado
+                        const tecnicos = normalizeTecnicosSelecionados(processo.tecnicosSelecionados);
+                        console.log(`Processo ${processo.id}: Técnicos normalizados:`, tecnicos);
+
+                        if (tecnicos.length > 0) {
+                          return (
+                            <div className="text-sm space-y-1">
+                              {tecnicos.map((tecnico) => (
+                                <div key={`${processo.id}-${tecnico.id}`} className="flex items-center gap-1">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs py-0 px-1 bg-blue-50 text-blue-700 border-blue-200"
+                                  >
+                                    <span className="flex items-center gap-1">
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 mr-1">
+                                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                        <circle cx="9" cy="7" r="4" />
+                                        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                      </svg>
+                                      {tecnico.nome}
+                                    </span>
+                                  </Badge>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">Nenhum técnico</span>
-                      )}
+                          );
+                        } else {
+                          return (
+                            <span className="text-sm text-muted-foreground italic">
+                              Aguardando seleção de técnicos
+                            </span>
+                          );
+                        }
+                      })()}
+
                     </TableCell>
                     <TableCell>{formatarData(processo.createdAt)}</TableCell>
                     <TableCell>
@@ -682,18 +972,25 @@ export default function ChefeMonitorizacao() {
                       {/* Ações disponíveis baseadas no estado do processo */}
                       <div className="flex flex-wrap gap-2">
                         {processo.periodoEstado === 'SOLICITADA_REABERTURA' && (
-                          <AprovarReaberturaButton 
-                            periodoId={processo.periodoId} 
+                          <AprovarReaberturaButton
+                            periodoId={processo.periodoId}
                             onSuccess={fetchProcessos}
                           />
                         )}
 
-                        {processo.estadoProcesso === 'AGUARDANDO_PARECER' && (
-                          <Button size="sm" variant="outline">
+                        {processo.estadoProcesso === 'AGUARDANDO_PARECER' || processo.estadoProcesso === 'AGUARDANDO_VISITA' || processo.estadoProcesso === 'VISITA_REALIZADA' ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedProcesso(processo);
+                              setIsParecerDialogOpen(true);
+                            }}
+                          >
                             <FileText className="mr-2 h-4 w-4" />
                             Parecer
                           </Button>
-                        )}
+                        ) : null}
 
                         {processo.estadoProcesso === 'AGUARDANDO_RUPE' && (
                           <Button size="sm" variant="outline" onClick={() => handleOpenRupeDialog(processo)}>
@@ -733,27 +1030,23 @@ export default function ChefeMonitorizacao() {
                           </Button>
                         )}
 
-                        {processo.estadoProcesso === 'AGUARDANDO_DOCUMENTO_FINAL' && (
+                        {(processo.estadoProcesso === 'AGUARDANDO_DOCUMENTO_FINAL' || 
+                          (processo.estadoProcesso === 'CONCLUIDO' && processo.documentoFinalPath)) && (
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleOpenDocumentoFinalDialog(processo)}
                           >
                             <FileCheck className="mr-2 h-4 w-4" />
-                            Enviar Documento Final
+                            {processo.estadoProcesso === 'CONCLUIDO' && processo.documentoFinalPath 
+                              ? 'Ver Documento Final' 
+                              : 'Enviar Documento Final'}
                           </Button>
                         )}
 
                         {/* Botões para visualização de documentos */}
                         {/* RUPE - Disponível quando o RUPE foi gerado */}
-                        {processo.rupePath && [
-                          "AGUARDANDO_PAGAMENTO_RUPE",
-                          "AGUARDANDO_CONFIRMACAO_PAGAMENTO",
-                          "AGUARDANDO_VISITA",
-                          "AGUARDANDO_PARECER",
-                          "AGUARDANDO_DOCUMENTO_FINAL",
-                          "CONCLUIDO"
-                        ].includes(processo.estadoProcesso) && (
+                        {processo.rupePath && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -837,92 +1130,104 @@ export default function ChefeMonitorizacao() {
                 </div>
               </div>
 
-              {selectedProcesso.tecnicosSelecionados && selectedProcesso.tecnicosSelecionados.length > 0 && (
-                <div>Técnicos selecionados</div>
+              {processarTecnicos(selectedProcesso).length > 0 && (
+                <div className="mt-2">
+                  <span className="font-semibold">Técnicos designados:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {processarTecnicos(selectedProcesso).map((tecnico: TecnicoSelecionado) => (
+                      <Badge key={tecnico.id} variant="outline" className="text-xs">
+                        {tecnico.nome}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           )}
-          </DialogContent>
+        </DialogContent>
       </Dialog>
-      
+
       {/* Diálogo para marcar visita como realizada */}
       <Dialog open={isVisitaFeitaDialogOpen} onOpenChange={setIsVisitaFeitaDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Marcar Visita como Realizada</DialogTitle>
-              <DialogDescription>
-                Registre as observações e o relatório da visita técnica ao processo #{selectedProcesso?.id}.
-              </DialogDescription>
-            </DialogHeader>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Marcar Visita como Realizada</DialogTitle>
+            <DialogDescription>
+              Registre as observações e o relatório da visita técnica ao processo #{selectedProcesso?.id}.
+            </DialogDescription>
+          </DialogHeader>
 
-            {selectedProcesso && (
-              <div>
-                <div className="bg-muted p-3 rounded-md text-sm mb-4">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="font-semibold">Utente:</span> {selectedProcesso.utenteNome}
-                    </div>
-                    <div>
-                      <span className="font-semibold">NIF:</span> {selectedProcesso.utenteNif}
-                    </div>
-                    <div>
-                      <span className="font-semibold">Período:</span> {selectedProcesso.tipoPeriodo} {selectedProcesso.numeroPeriodo}
-                    </div>
-                    <div>
-                      <span className="font-semibold">Data Prevista:</span> {selectedProcesso.dataPrevistaVisita ? formatarData(selectedProcesso.dataPrevistaVisita) : 'Não definida'}
-                    </div>
+          {selectedProcesso && (
+            <div>
+              <div className="bg-muted p-3 rounded-md text-sm mb-4">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="font-semibold">Utente:</span> {selectedProcesso.utenteNome}
                   </div>
-                  
-                  {selectedProcesso.tecnicosSelecionados && selectedProcesso.tecnicosSelecionados.length > 0 && (
+                  <div>
+                    <span className="font-semibold">NIF:</span> {selectedProcesso.utenteNif}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Período:</span> {selectedProcesso.tipoPeriodo} {selectedProcesso.numeroPeriodo}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Data Prevista:</span> {selectedProcesso.dataPrevistaVisita ? formatarData(selectedProcesso.dataPrevistaVisita) : 'Não definida'}
+                  </div>
+                </div>
+
+                {(() => {
+                  const tecnicos = processarTecnicos(selectedProcesso);
+                  return tecnicos.length > 0 && (
                     <div className="mt-2">
                       <span className="font-semibold">Técnicos designados:</span>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {selectedProcesso.tecnicosSelecionados.map(tecnico => (
+                        {tecnicos.map((tecnico: TecnicoSelecionado) => (
                           <Badge key={tecnico.id} variant="outline" className="text-xs">
                             {tecnico.nome}
                           </Badge>
                         ))}
                       </div>
                     </div>
-                  )}
-                  {relatorioVisitaFile && (
-                    <p className="text-sm text-muted-foreground">
-                      Arquivo selecionado: {relatorioVisitaFile.name}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="observacoesVisita">Observações (opcional)</Label>
-                  <textarea
-                    id="observacoesVisita"
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="Observações sobre a visita realizada"
-                    value={observacoes}
-                    onChange={(e) => setObservacoes(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsVisitaFeitaDialogOpen(false)}>Cancelar</Button>
-              <Button
-                onClick={handleMarcarVisitaFeita}
-                disabled={isSubmitting || !relatorioVisitaFile}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enviando...
-                  </>
-                ) : (
-                  "Marcar como Realizada"
+                  );
+                })()}
+                {relatorioVisitaFile && (
+                  <p className="text-sm text-muted-foreground">
+                    Arquivo selecionado: {relatorioVisitaFile.name}
+                  </p>
                 )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="observacoesVisita">Observações (opcional)</Label>
+                <textarea
+                  id="observacoesVisita"
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="Observações sobre a visita realizada"
+                  value={observacoes}
+                  onChange={(e) => setObservacoes(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsVisitaFeitaDialogOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleMarcarVisitaFeita}
+              disabled={isSubmitting || !relatorioVisitaFile}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                "Marcar como Realizada"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Diálogo para enviar documento final */ }
+      {/* Diálogo para enviar documento final */}
       <Dialog open={isDocumentoFinalDialogOpen} onOpenChange={setIsDocumentoFinalDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -946,11 +1251,11 @@ export default function ChefeMonitorizacao() {
                 </div>
               </div>
 
-              {selectedProcesso.tecnicosSelecionados && selectedProcesso.tecnicosSelecionados.length > 0 && (
+              {selectedProcesso.tecnicosSelecionados && normalizeTecnicosSelecionados(selectedProcesso.tecnicosSelecionados).length > 0 && (
                 <div className="mt-2">
                   <span className="font-semibold">Técnicos designados:</span>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedProcesso.tecnicosSelecionados.map(tecnico => (
+                    {normalizeTecnicosSelecionados(selectedProcesso.tecnicosSelecionados).map((tecnico) => (
                       <Badge key={tecnico.id} variant="outline" className="text-xs">
                         {tecnico.nome}
                       </Badge>
@@ -960,7 +1265,7 @@ export default function ChefeMonitorizacao() {
               )}
             </div>
           )}
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="documentoFinalFile">Documento Final</Label>
@@ -987,7 +1292,7 @@ export default function ChefeMonitorizacao() {
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDocumentoFinalDialogOpen(false)}>Cancelar</Button>
             <Button
@@ -1001,6 +1306,235 @@ export default function ChefeMonitorizacao() {
                 </>
               ) : (
                 "Enviar Documento Final"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para adicionar RUPE */}
+      <Dialog open={isRupeDialogOpen} onOpenChange={setIsRupeDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar RUPE</DialogTitle>
+            <DialogDescription>
+              Adicione informações de RUPE ao processo #{selectedProcesso?.id}.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedProcesso && (
+            <div className="bg-muted p-3 rounded-md text-sm mb-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="font-semibold">Utente:</span> {selectedProcesso.utenteNome}
+                </div>
+                <div>
+                  <span className="font-semibold">NIF:</span> {selectedProcesso.utenteNif}
+                </div>
+                <div>
+                  <span className="font-semibold">Período:</span> {selectedProcesso.tipoPeriodo} {selectedProcesso.numeroPeriodo}
+                </div>
+              </div>
+
+              {selectedProcesso.tecnicosSelecionados && normalizeTecnicosSelecionados(selectedProcesso.tecnicosSelecionados).length > 0 && (
+                <div className="mt-2">
+                  <span className="font-semibold">Técnicos designados:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {normalizeTecnicosSelecionados(selectedProcesso.tecnicosSelecionados).map((tecnico) => (
+                      <Badge key={tecnico.id} variant="outline" className="text-xs">
+                        {tecnico.nome}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="rupeReferencia">Referência RUPE</Label>
+              <Input
+                id="rupeReferencia"
+                placeholder="Ex: RUPE-2025-12345"
+                value={rupeReferencia}
+                onChange={(e) => setRupeReferencia(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rupeFile">Arquivo RUPE (PDF)</Label>
+              <Input
+                id="rupeFile"
+                type="file"
+                accept=".pdf"
+                onChange={handleRupeFileChange}
+              />
+              {rupeFile && (
+                <p className="text-sm text-muted-foreground">
+                  Arquivo selecionado: {rupeFile.name}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRupeDialogOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleAdicionarRupe}
+              disabled={isSubmitting || !rupeReferencia || !rupeFile}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                "Adicionar RUPE"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para adicionar parecer */}
+      <Dialog open={isParecerDialogOpen} onOpenChange={setIsParecerDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar Parecer</DialogTitle>
+            <DialogDescription>
+              Adicione seu parecer ao processo #{selectedProcesso?.id}.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedProcesso && (
+            <div className="bg-muted p-3 rounded-md text-sm mb-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="font-semibold">Utente:</span> {selectedProcesso.utenteNome}
+                </div>
+                <div>
+                  <span className="font-semibold">NIF:</span> {selectedProcesso.utenteNif}
+                </div>
+                <div>
+                  <span className="font-semibold">Período:</span> {selectedProcesso.tipoPeriodo} {selectedProcesso.numeroPeriodo}
+                </div>
+              </div>
+
+              {selectedProcesso.tecnicosSelecionados && normalizeTecnicosSelecionados(selectedProcesso.tecnicosSelecionados).length > 0 && (
+                <div className="mt-2">
+                  <span className="font-semibold">Técnicos designados:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {normalizeTecnicosSelecionados(selectedProcesso.tecnicosSelecionados).map((tecnico) => (
+                      <Badge key={tecnico.id} variant="outline" className="text-xs">
+                        {tecnico.nome}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedProcesso.parecerTecnicoPath && (
+                <div className="mt-2">
+                  <span className="font-semibold">Parecer Técnico:</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-7 px-2"
+                      onClick={() => window.open(`/api/documentos/${selectedProcesso.parecerTecnicoPath}`, '_blank')}
+                    >
+                      <FileText className="mr-1 h-3 w-3" /> Ver Parecer Técnico
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="parecerTipo">Tipo de Parecer</Label>
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="aprovado"
+                    name="parecerTipo"
+                    value="APROVADO"
+                    checked={parecerTipo === "APROVADO"}
+                    onChange={() => setParecerTipo("APROVADO")}
+                    className="h-4 w-4 text-primary"
+                  />
+                  <Label htmlFor="aprovado" className="text-sm font-normal">Aprovado</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="carece_melhorias"
+                    name="parecerTipo"
+                    value="CARECE_MELHORIAS"
+                    checked={parecerTipo === "CARECE_MELHORIAS"}
+                    onChange={() => setParecerTipo("CARECE_MELHORIAS")}
+                    className="h-4 w-4 text-primary"
+                  />
+                  <Label htmlFor="carece_melhorias" className="text-sm font-normal">Carece de Melhorias</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="rejeitado"
+                    name="parecerTipo"
+                    value="REJEITADO"
+                    checked={parecerTipo === "REJEITADO"}
+                    onChange={() => setParecerTipo("REJEITADO")}
+                    className="h-4 w-4 text-primary"
+                  />
+                  <Label htmlFor="rejeitado" className="text-sm font-normal">Rejeitado</Label>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="observacoes">Observações</Label>
+              <textarea
+                id="observacoes"
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Observações sobre o parecer"
+                value={observacoes}
+                onChange={(e) => setObservacoes(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="parecerFile">Anexar Documento (opcional)</Label>
+              <Input
+                id="parecerFile"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={(e) => e.target.files && e.target.files[0] && setParecerFile(e.target.files[0])}
+              />
+              {parecerFile && (
+                <p className="text-sm text-muted-foreground">
+                  Arquivo selecionado: {parecerFile.name}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsParecerDialogOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleAdicionarParecer}
+              disabled={isSubmitting}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                "Adicionar Parecer"
               )}
             </Button>
           </DialogFooter>

@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model monitorizacao {
+  id                Int                  @id @default(autoincrement())
+  utenteId          Int
+  periodoId         Int
+  estado            String
+  relatorioPath     String?
+  parecerTecnicoPath String?             // Adicionado campo para o parecer técnico
+  estadoProcesso    String               @default("AGUARDANDO_PARECER")
+  rupePath          String?
+  rupeReferencia    String?
+  rupePago          Boolean              @default(false)
+  documentoFinalPath String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  periodo           periodomonitorizacao @relation(fields: [periodoId], references: [id])
+  utente            utente               @relation(fields: [utenteId], references: [id])
+
+  @@index([periodoId], map: "Monitorizacao_periodoId_idx")
+  @@index([utenteId], map: "Monitorizacao_utenteId_idx")
+}

@@ -23,21 +23,27 @@ export default function SidebarDireccao() {
                 </div>
                 {/* Menu Direcção */}
                 <nav className="flex flex-col gap-2 mt-4 px-4">
-                <ActiveLink href="/direccao" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
-    <Home size={20} /> Dashboard
-</ActiveLink>
+                    <ActiveLink href="/direccao" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
+                        <Home size={20} /> Dashboard
+                    </ActiveLink>
                     <ActiveLink href="/direccao/dir_colaboradores" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
-    <Users size={20} /> Colaboradores
-</ActiveLink>
+                        <Users size={20} /> Colaboradores
+                    </ActiveLink>
                     <ActiveLink href="/direccao/dir_utentes" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
-    <User size={20} /> Utentes
-</ActiveLink>
+                        <User size={20} /> Utentes
+                    </ActiveLink>
                     <ActiveLink href="/direccao/dir_processos" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
-    <Folder size={20} /> Processos
-</ActiveLink>
+                        <Folder size={20} /> Autorização
+                    </ActiveLink>
+                    <ActiveLink href="/direccao/processos-monitorizacao" className="flex items-center gap-3 px-4 py-2 ml-4 rounded-lg hover:bg-gray-900 transition text-lime-300">
+                        <Folder size={16} /> Monitorização
+                    </ActiveLink>
+                    <ActiveLink href="/direccao/reaberturas" className="flex items-center gap-3 px-4 py-2 ml-4 rounded-lg hover:bg-gray-900 transition text-lime-300">
+                        <Folder size={16} /> Reabertura
+                    </ActiveLink>
                     <ActiveLink href="/direccao/dir_relatorios" className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900 transition">
-    <BarChart2 size={20} /> Relatórios
-</ActiveLink>
+                        <BarChart2 size={20} /> Relatórios
+                    </ActiveLink>
                 </nav>
             </div>
             {/* Footer */}

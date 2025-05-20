@@ -44,7 +44,6 @@ model solicitacaoautorizacao {
   tipo                 String
   moedaId              Int
   valorTotalKz         Float
-  numeroFactura        String?
   status               String                 @default("Pendente")
   rupeReferencia       String?
   rupeDocumento        String?
@@ -60,11 +59,12 @@ model solicitacaoautorizacao {
   rupePago             Boolean                @default(false)
   rupeValidado         Boolean                @default(false)
   tecnicoId            Int?
-  tecnicoValidador     String?
-  chefeValidador       String?
-  direcaoValidador     String?
   validadoPorChefe     Boolean                @default(false)
   validadoPorTecnico   Boolean                @default(false)
+  numeroFactura        String?
+  chefeValidador       String?
+  direcaoValidador     String?
+  tecnicoValidador     String?
   autorizacao          autorizacao?
   documentosolicitacao documentosolicitacao[]
   moeda                moeda                  @relation(fields: [moedaId], references: [id], map: "SolicitacaoAutorizacao_moedaId_fkey")
@@ -90,34 +90,89 @@ model solicitacaoitem {
   @@index([solicitacaoId], map: "SolicitacaoItem_solicitacaoId_fkey")
 }
 
-model utente {
-  id                     Int                      @id @default(autoincrement())
-  nif                    String                   @unique(map: "Utente_nif_key")
-  nome                   String
-  endereco               String
-  telefone               String
-  email                  String                   @unique(map: "Utente_email_key")
-  senha                  String
-  role                   utente_role              @default(utente)
-  departamento           String?
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  solicitacaoautorizacao solicitacaoautorizacao[]
-  historicoNiveis        historicoNivel[]
-  configuracaoMonitorizacao configuracaoMonitorizacao?
-  monitorizacoes         monitorizacao[]
+model periodomonitorizacao {
+  id                        Int                       @id @default(autoincrement())
+  configuracaoId            Int
+  numeroPeriodo             Int
+  dataInicio                DateTime
+  dataFim                   DateTime
+  estado                    String                    @default("FECHADO")
+  motivoReabertura          String?
+  dataReaberturaAprovada    DateTime?
+  dataValidadeReabertura    DateTime?
+  rupeReferencia            String?
+  rupePago                  Boolean                   @default(false)
+  rupeValidado              Boolean                   @default(false)
+  dataSolicitacaoReabertura DateTime?
+  rupeNumero                String?
+  statusReabertura          String?
+  monitorizacoes            monitorizacao[]
+  configuracao              configuracaomonitorizacao @relation(fields: [configuracaoId], references: [id])
+
+  @@index([configuracaoId])
 }
 
-model historicoNivel {
-  id              Int       @id @default(autoincrement())
-  utenteId        Int
-  nivel           String
-  area            String
-  dataAlteracao   DateTime  @default(now())
-  motivoAlteracao String
-  utente          utente    @relation(fields: [utenteId], references: [id])
+model configuracaomonitorizacao {
+  id          Int                    @id @default(autoincrement())
+  descricao   String
+  tipoPeriodo String
+  dataInicio  DateTime
+  utenteId    Int?                   @unique
+  utente      utente?                @relation(fields: [utenteId], references: [id])
+  periodos    periodomonitorizacao[]
+}
 
-  @@index([utenteId])
+model monitorizacao {
+  id                 Int                    @id @default(autoincrement())
+  periodoId          Int
+  utenteId           Int
+  relatorioPath      String?
+  parecerTecnicoPath String?
+  rupePath           String?
+  rupeReferencia     String?
+  rupePago           Boolean                @default(false)
+  documentoFinalPath String?
+  estado             String                 @default("PENDENTE")
+  estadoProcesso     String                 @default("AGUARDANDO_PARECER")
+  dataPrevistaVisita DateTime?
+  dataVisita         DateTime?
+  observacoesVisita  String?
+  periodo            periodomonitorizacao   @relation(fields: [periodoId], references: [id])
+  utente             utente                 @relation(fields: [utenteId], references: [id])
+  tecnicos           tecnicomonitorizacao[]
+
+  @@index([periodoId], map: "monitorizacao_periodoId_fkey")
+  @@index([utenteId], map: "monitorizacao_utenteId_fkey")
+}
+
+model tecnicomonitorizacao {
+  id              Int           @id @default(autoincrement())
+  monitorizacaoId Int
+  tecnicoId       Int
+  nome            String
+  monitorizacao   monitorizacao @relation(fields: [monitorizacaoId], references: [id])
+  tecnico         utente        @relation("TecnicoMonitorizacao", fields: [tecnicoId], references: [id])
+
+  @@index([monitorizacaoId], map: "tecnicomonitorizacao_monitorizacaoId_fkey")
+  @@index([tecnicoId], map: "tecnicomonitorizacao_tecnicoId_fkey")
+}
+
+model utente {
+  id                        Int                        @id @default(autoincrement())
+  nif                       String                     @unique(map: "Utente_nif_key")
+  nome                      String
+  endereco                  String
+  telefone                  String
+  email                     String                     @unique(map: "Utente_email_key")
+  senha                     String
+  role                      utente_role                @default(utente)
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  departamento              String?
+  configuracaomonitorizacao configuracaomonitorizacao?
+  monitorizacoes            monitorizacao[]
+  solicitacaoautorizacao    solicitacaoautorizacao[]
+  tecnicosMonitorizacao     tecnicomonitorizacao[]     @relation("TecnicoMonitorizacao")
 }
 
 model codigopautalautorizacao {
@@ -147,45 +202,6 @@ model autorizacao {
   codigosPautais         codigopautalautorizacao[]
 
   @@index([solicitacaoId])
-}
-
-model configuracaoMonitorizacao {
-  id          Int       @id @default(autoincrement())
-  utenteId    Int
-  tipoPeriodo String    // ANUAL, SEMESTRAL, TRIMESTRAL
-  dataInicio  DateTime
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  utente      utente    @relation(fields: [utenteId], references: [id])
-  periodos    periodoMonitorizacao[]
-
-  @@unique([utenteId], name: "configuracaoMonitorizacao_utenteId")
-}
-
-model periodoMonitorizacao {
-  id              Int       @id @default(autoincrement())
-  configuracaoId  Int
-  numeroPeriodo   Int
-  dataInicio      DateTime
-  dataFim         DateTime
-  estado          String    // ABERTO, FECHADO, AGUARDANDO_REAVALIACAO, REABERTURA_SOLICITADA
-  configuracao    configuracaoMonitorizacao @relation(fields: [configuracaoId], references: [id])
-  monitorizacoes  monitorizacao[]
-}
-
-model monitorizacao {
-  id            Int       @id @default(autoincrement())
-  utenteId      Int
-  periodoId     Int
-  relatorioPath String?
-  estado        String    // PENDENTE, APROVADO, REJEITADO
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  utente        utente    @relation(fields: [utenteId], references: [id])
-  periodo       periodoMonitorizacao @relation(fields: [periodoId], references: [id])
-
-  @@index([utenteId])
-  @@index([periodoId])
 }
 
 enum utente_role {

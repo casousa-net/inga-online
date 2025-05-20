@@ -86,6 +86,10 @@ export async function GET() {
       createdAtColumn = hasCreatedAt ? 'm.createdAt' : 'NOW() as createdAt';
       orderByClause = hasCreatedAt ? 'ORDER BY m.createdAt DESC' : 'ORDER BY m.id DESC';
       
+      console.log(`[DEBUG] Verificado se a coluna createdAt existe: ${hasCreatedAt}`);
+      console.log(`[DEBUG] Expressão SQL para createdAt: ${createdAtColumn}`);
+      console.log(`[DEBUG] Cláusula de ordenação: ${orderByClause}`);
+      
       console.log(`[DEBUG] Usando coluna de data: ${createdAtColumn} e ordenação: ${orderByClause}`);
       
       // Consulta simplificada apenas para verificar se a tabela tem dados
@@ -181,16 +185,57 @@ export async function GET() {
       
       selectColumns.push(tecnicosQuery);
       
-      // Construir a consulta final
+      // Construir a consulta final para incluir tanto os processos de monitorizacao quanto os períodos com solicitação de reabertura
       const query = `
-        SELECT 
-          ${selectColumns.join(',\n          ')}
-        FROM monitorizacao m
-        LEFT JOIN utente u ON m.utenteId = u.id
-        LEFT JOIN ${periodoTable} p ON m.periodoId = p.id
-        LEFT JOIN ${configTable} c ON p.configuracaoId = c.id
-        GROUP BY m.id
-        ${orderByClause}
+        SELECT * FROM (
+          -- Consulta principal para processos com monitorizacao
+          SELECT 
+            ${selectColumns.join(',\n            ')}
+          FROM monitorizacao m
+          LEFT JOIN utente u ON m.utenteId = u.id
+          LEFT JOIN ${periodoTable} p ON m.periodoId = p.id
+          LEFT JOIN ${configTable} c ON p.configuracaoId = c.id
+          GROUP BY m.id
+          
+          UNION ALL
+          
+          -- Consulta adicional para períodos com solicitação de reabertura sem monitorizacao
+          SELECT 
+            NULL as id,
+            cm.utenteId as utenteId,
+            p.id as periodoId,
+            'PENDENTE' as estado,
+            'AGUARDANDO_PARECER' as estadoProcesso,
+            NULL as rupePath,
+            NULL as rupeReferencia,
+            0 as rupePago,
+            NULL as dataPrevistaVisita,
+            NULL as dataVisita,
+            NULL as observacoesVisita,
+            NULL as relatorioPath,
+            NULL as parecerTecnicoPath,
+            NULL as documentoFinalPath,
+            COALESCE(p.dataSolicitacaoReabertura, NOW()) as createdAt,
+            NULL as updatedAt,
+            u.nome as utenteNome,
+            u.nif as utenteNif,
+            u.email as utenteEmail,
+            p.numeroPeriodo as numeroPeriodo,
+            COALESCE(cm.tipoPeriodo, 'SEMESTRAL') as tipoPeriodo,
+            NULL as tecnicosSelecionados
+          FROM 
+            ${periodoTable} p
+          JOIN 
+            ${configTable} cm ON p.configuracaoId = cm.id
+          JOIN 
+            utente u ON cm.utenteId = u.id
+          WHERE
+            p.estado = 'SOLICITADA_REABERTURA'
+            AND NOT EXISTS (
+              SELECT 1 FROM monitorizacao m WHERE m.periodoId = p.id
+            )
+        ) AS todos_processos
+        ORDER BY createdAt DESC
       `;
       
       console.log("[DEBUG] Consulta SQL completa:", query);
@@ -289,27 +334,92 @@ export async function GET() {
         
         console.log("[DEBUG] Consulta de fallback retornou:", fallbackResult.length, "resultados");
         
-        const processosFormatados = fallbackResult.map(p => ({
-          id: p.id,
-          utenteId: p.utenteId,
-          utenteNome: p.utenteNome || 'Nome não disponível',
-          utenteNif: p.utenteNif || 'NIF não disponível',
-          estadoProcesso: p.estadoProcesso || 'DESCONHECIDO',
-          rupePath: p.rupePath,
-          rupePago: p.rupePago === 1,
-          dataPrevistaVisita: p.dataPrevistaVisita,
-          dataVisita: p.dataVisita,
-          observacoesVisita: p.observacoesVisita,
-          relatorioPath: p.relatorioPath,
-          parecerTecnicoPath: p.parecerTecnicoPath,
-          documentoFinalPath: p.documentoFinalPath,
-          createdAt: p.createdAt instanceof Date 
-            ? p.createdAt.toISOString() 
-            : new Date(p.createdAt).toISOString(),
-          numeroPeriodo: 1, // Valor padrão
-          tipoPeriodo: 'SEMESTRAL', // Valor padrão
-          _fallback: true // Indicador de que são dados de fallback
-        }));
+        // Buscar técnicos para cada processo
+        const processosIds = fallbackResult.map(p => p.id);
+        interface TecnicoInfo {
+          id: number;
+          nome: string;
+        }
+        
+        interface TecnicosPorProcesso {
+          [key: number]: TecnicoInfo[];
+        }
+        
+        let tecnicosPorProcesso: TecnicosPorProcesso = {};
+        
+        if (processosIds.length > 0) {
+          try {
+            console.log('[DEBUG] Buscando técnicos para os processos...');
+            
+            // Verificar se a tabela tecnicomonitorizacao existe
+            const checkTecnicoMonitTable = await prisma.$queryRawUnsafe(`
+              SELECT COUNT(*) as count FROM information_schema.tables 
+              WHERE table_schema = DATABASE() AND table_name = 'tecnicomonitorizacao'
+            `);
+            
+            const tecnicoMonitTableExists = Array.isArray(checkTecnicoMonitTable) && 
+              checkTecnicoMonitTable.length > 0 && 
+              (checkTecnicoMonitTable[0] as any).count > 0;
+            
+            if (tecnicoMonitTableExists) {
+              // Buscar técnicos da tabela utente (como feito na API de períodos)
+              const tecnicosResult = await prisma.$queryRawUnsafe(`
+                SELECT tm.monitorizacaoId, u.id as tecnicoId, u.nome as tecnicoNome 
+                FROM tecnicomonitorizacao tm
+                JOIN utente u ON tm.tecnicoId = u.id
+                WHERE tm.monitorizacaoId IN (${processosIds.join(',')})
+              `);
+              
+              // Organizar técnicos por processo
+              if (Array.isArray(tecnicosResult)) {
+                for (const tecnico of tecnicosResult) {
+                  const monitId = tecnico.monitorizacaoId;
+                  if (!tecnicosPorProcesso[monitId]) {
+                    tecnicosPorProcesso[monitId] = [];
+                  }
+                  tecnicosPorProcesso[monitId].push({
+                    id: tecnico.tecnicoId,
+                    nome: tecnico.tecnicoNome
+                  });
+                }
+              }
+            }
+          } catch (tecnicosError) {
+            console.error('[DEBUG] Erro ao buscar técnicos:', tecnicosError);
+          }
+        }
+        
+        const processosFormatados = fallbackResult.map(p => {
+          // Formatar técnicos para este processo
+          const tecnicos = tecnicosPorProcesso[p.id] || [];
+          // Enviamos os técnicos diretamente como um array de objetos, não como uma string
+          const tecnicosSelecionados = tecnicos.length > 0 
+            ? tecnicos
+            : [];
+            
+          return {
+            id: p.id,
+            utenteId: p.utenteId,
+            utenteNome: p.utenteNome || 'Nome não disponível',
+            utenteNif: p.utenteNif || 'NIF não disponível',
+            estadoProcesso: p.estadoProcesso || 'DESCONHECIDO',
+            rupePath: p.rupePath,
+            rupePago: p.rupePago === 1,
+            dataPrevistaVisita: p.dataPrevistaVisita,
+            dataVisita: p.dataVisita,
+            observacoesVisita: p.observacoesVisita,
+            relatorioPath: p.relatorioPath,
+            parecerTecnicoPath: p.parecerTecnicoPath,
+            documentoFinalPath: p.documentoFinalPath,
+            tecnicosSelecionados: tecnicosSelecionados,
+            createdAt: p.createdAt instanceof Date 
+              ? p.createdAt.toISOString() 
+              : new Date(p.createdAt).toISOString(),
+            numeroPeriodo: 1, // Valor padrão
+            tipoPeriodo: 'SEMESTRAL', // Valor padrão
+            _fallback: true // Indicador de que são dados de fallback
+          };
+        });
         
         return NextResponse.json(processosFormatados);
         

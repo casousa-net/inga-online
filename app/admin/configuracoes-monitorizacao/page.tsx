@@ -208,7 +208,7 @@ export default function ConfiguracoesMonitorizacaoPage() {
       <ToastContainer />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Configurações de Monitorização</h1>
-        <Button onClick={() => setShowForm(!showForm)}>
+        <Button className="bg-lime-500 hover:bg-lime-600" onClick={() => setShowForm(!showForm)}>
           <Plus className="h-4 w-4 mr-2" />
           Nova Configuração
         </Button>
@@ -370,7 +370,10 @@ export default function ConfiguracoesMonitorizacaoPage() {
               <CardContent className="p-4">
                 <div className="flex items-center mb-3 text-sm text-gray-600">
                   <Calendar className="h-4 w-4 mr-1" />
-                  <span>Início: {format(new Date(config.dataInicio), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                  <span>Início: {(() => {
+  const d = new Date(config.dataInicio);
+  return isNaN(d.getTime()) ? 'Data inválida' : format(d, 'dd/MM/yyyy', { locale: ptBR });
+})()}</span>
                 </div>
                 
                 <h4 className="font-medium mb-2 flex items-center">
@@ -379,13 +382,18 @@ export default function ConfiguracoesMonitorizacaoPage() {
                 </h4>
                 
                 <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {config.periodos.map(periodo => (
-                    <div key={periodo.id} className="text-sm p-2 border rounded flex justify-between items-center">
+                  {config.periodos.map((periodo, index) => (
+                    <div key={`${config.id}-${periodo.id}-${index}`} className="text-sm p-2 border rounded flex justify-between items-center">
                       <div>
                         <div>Período {periodo.numeroPeriodo}</div>
                         <div className="text-xs text-gray-500">
-                          {format(new Date(periodo.dataInicio), 'dd/MM/yyyy', { locale: ptBR })} a {' '}
-                          {format(new Date(periodo.dataFim), 'dd/MM/yyyy', { locale: ptBR })}
+                          {(() => {
+  const di = new Date(periodo.dataInicio);
+  const df = new Date(periodo.dataFim);
+  const inicio = isNaN(di.getTime()) ? 'Data inválida' : format(di, 'dd/MM/yyyy', { locale: ptBR });
+  const fim = isNaN(df.getTime()) ? 'Data inválida' : format(df, 'dd/MM/yyyy', { locale: ptBR });
+  return `${inicio} a ${fim}`;
+})()}
                         </div>
                       </div>
                       <div className={`text-xs px-2 py-1 rounded-full ${

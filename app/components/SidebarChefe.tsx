@@ -13,11 +13,11 @@ export default function SidebarChefe() {
     // Recuperar o nome e departamento do usuário do localStorage
     const storedUserName = localStorage.getItem('userName');
     const storedDepartamento = localStorage.getItem('userDepartamento');
-    
+
     if (storedUserName) {
       setUserName(storedUserName);
     }
-    
+
     if (storedDepartamento) {
       // Normalizar o valor do departamento (remover acentos e converter para minúsculas)
       const normalizedDepartamento = storedDepartamento
@@ -52,6 +52,11 @@ export default function SidebarChefe() {
               {departamento === 'monitorizacao' && (
                 <ActiveLink href="/chefe/processos/monitorizacao" className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-900 transition text-sm">
                   <FileText size={16} /> Monitorização
+                </ActiveLink>
+              )}
+              {departamento === 'monitorizacao' && (
+                <ActiveLink href="/chefe/reaberturas" className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-900 transition text-sm">
+                  <FileText size={16} /> Reabertura
                 </ActiveLink>
               )}
               {departamento === 'autorizacao' && (

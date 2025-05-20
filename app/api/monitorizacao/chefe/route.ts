@@ -1,82 +1,40 @@
-import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+interface Tecnico {
+  id: string;
+  nome: string;
+}
+
+interface Processo {
+  id: string | null;
+  tecnicosSelecionados: string | null;
+  [key: string]: any;
+}
 
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const departamento = url.searchParams.get("departamento") || "monitorizacao";
     
-    console.log("Buscando processos de monitorização para departamento:", departamento);
+    console.log("Buscando processos de monitorizacao para departamento:", departamento);
     
-    // Usar uma abordagem mais segura com try/catch específico para a consulta SQL
-    let processos: any[] = [];
+    let processos: Processo[] = [];
     
     try {
-      // Buscar todos os processos de monitorização que estão no estado PENDENTE
-      // e já possuem relatório enviado pelo utente
-      // Também buscar períodos com solicitação de reabertura
-      const result = await prisma.$queryRawUnsafe(`
-        SELECT 
-          m.id,
-          m.utenteId,
-          m.periodoId,
-          m.relatorioPath,
-          m.parecerTecnicoPath,
-          m.rupePath,
-          m.rupeReferencia,
-          m.rupePago,
-          m.documentoFinalPath,
-          m.estado,
-          m.estadoProcesso,
-          m.dataPrevistaVisita,
-          m.dataVisita,
-          m.observacoesVisita,
-          m.createdAt,
-          m.autorizacaoDirecao,
-          u.nome as utenteNome,
-          u.nif as utenteNif,
-          p.numeroPeriodo,
-          p.dataInicio as periodoInicio,
-          p.dataFim as periodoFim,
-          p.estado as periodoEstado,
-          p.motivoReabertura,
-          p.dataSolicitacaoReabertura,
-          p.statusReabertura,
-          COALESCE(c.tipoPeriodo, 'SEMESTRAL') as tipoPeriodo,
-          (SELECT GROUP_CONCAT(CONCAT(tec.id, ':', tec.nome) SEPARATOR '|') 
-           FROM tecnicomonitorizacao tm 
-           JOIN utente tec ON tm.tecnicoId = tec.id 
-           WHERE tm.monitorizacaoId = m.id) as tecnicosSelecionados
-        FROM 
-          monitorizacao m
-        JOIN 
-          utente u ON m.utenteId = u.id
-        JOIN 
-          periodoMonitorizacao p ON m.periodoId = p.id
-        LEFT JOIN 
-          configuracaoMonitorizacao c ON p.configuracaoId = c.id
-        WHERE
-          m.estadoProcesso IS NOT NULL
-          OR p.estado = 'SOLICITADA_REABERTURA'
-        GROUP BY m.id
-        ORDER BY 
-          m.createdAt DESC
+      // Verificar se a coluna createdAt existe na tabela monitorizacao
+      const columnsResult = await prisma.$queryRawUnsafe(`
+        SHOW COLUMNS FROM monitorizacao LIKE 'createdAt'
       `);
       
-      processos = Array.isArray(result) ? result : [];
+      const hasCreatedAt = Array.isArray(columnsResult) && columnsResult.length > 0;
+      console.log("Coluna createdAt existe na tabela monitorizacao:", hasCreatedAt);
       
-      console.log(`Encontrados ${processos.length} processos de monitorização`);
-    } catch (sqlError) {
-      console.error("Erro na consulta SQL:", sqlError);
+      // Definir a expressao SQL para createdAt com base na existencia da coluna
+      const createdAtExpr = hasCreatedAt ? 'm.createdAt' : 'NOW() as createdAt';
       
-      // Tentar uma abordagem alternativa mais simples usando SQL bruto
-      console.log("Tentando abordagem alternativa com SQL bruto mais simples...");
-      
-      try {
-        // Usar uma consulta SQL mais simples
-        const result = await prisma.$queryRaw`
+      const query = `
+        WITH processos_monitorados AS (
           SELECT 
             m.id,
             m.utenteId,
@@ -89,106 +47,215 @@ export async function GET(req: NextRequest) {
             m.documentoFinalPath,
             m.estado,
             m.estadoProcesso,
-            m.createdAt,
+            ${createdAtExpr},
             m.dataPrevistaVisita,
             m.dataVisita,
             m.observacoesVisita,
-            m.autorizacaoDirecao,
-
             u.nome as utenteNome,
             u.nif as utenteNif,
             p.numeroPeriodo,
             p.dataInicio as periodoInicio,
             p.dataFim as periodoFim,
             p.estado as periodoEstado,
-            p.motivoReabertura,
-            p.dataSolicitacaoReabertura,
-            p.statusReabertura,
+            COALESCE(p.motivoReabertura, '') as motivoReabertura,
+            COALESCE(p.dataSolicitacaoReabertura, NULL) as dataSolicitacaoReabertura,
+            COALESCE(p.statusReabertura, '') as statusReabertura,
             COALESCE(c.tipoPeriodo, 'SEMESTRAL') as tipoPeriodo
-          FROM 
-            monitorizacao m
-          JOIN 
-            utente u ON m.utenteId = u.id
-          JOIN 
-            periodoMonitorizacao p ON m.periodoId = p.id
-          LEFT JOIN 
-            configuracaoMonitorizacao c ON p.configuracaoId = c.id
-          WHERE
-            m.estadoProcesso IS NOT NULL
-            OR p.estado = 'SOLICITADA_REABERTURA'
-          ORDER BY 
-            m.createdAt DESC
-          LIMIT 50
-        `;
+          FROM monitorizacao m
+          JOIN utente u ON m.utenteId = u.id
+          JOIN periodoMonitorizacao p ON m.periodoId = p.id
+          LEFT JOIN configuracaoMonitorizacao c ON p.configuracaoId = c.id
+          WHERE m.estadoProcesso IS NOT NULL
+        ),
+        periodos_solicitados AS (
+          SELECT 
+            NULL as id,
+            cm.utenteId,
+            p.id as periodoId,
+            NULL as relatorioPath,
+            NULL as parecerTecnicoPath,
+            NULL as rupePath,
+            NULL as rupeReferencia,
+            0 as rupePago,
+            NULL as documentoFinalPath,
+            'PENDENTE' as estado,
+            'AGUARDANDO_PARECER' as estadoProcesso,
+            COALESCE(p.dataSolicitacaoReabertura, NOW()) as createdAt,
+            u.nome as utenteNome,
+            u.nif as utenteNif,
+            p.numeroPeriodo,
+            p.dataInicio as periodoInicio,
+            p.dataFim as periodoFim,
+            p.estado as periodoEstado,
+            COALESCE(p.motivoReabertura, '') as motivoReabertura,
+            COALESCE(p.dataSolicitacaoReabertura, NULL) as dataSolicitacaoReabertura,
+            COALESCE(p.statusReabertura, '') as statusReabertura,
+            COALESCE(cm.tipoPeriodo, 'SEMESTRAL') as tipoPeriodo
+          FROM periodoMonitorizacao p
+          JOIN configuracaoMonitorizacao cm ON p.configuracaoId = cm.id
+          JOIN utente u ON cm.utenteId = u.id
+          WHERE p.estado = 'SOLICITADA_REABERTURA'
+          AND NOT EXISTS (SELECT 1 FROM monitorizacao m WHERE m.periodoId = p.id)
+        )
+        SELECT 
+          id, utenteId, periodoId, relatorioPath, parecerTecnicoPath, 
+          rupePath, rupeReferencia, rupePago, documentoFinalPath, estado, 
+          estadoProcesso, createdAt, dataPrevistaVisita, dataVisita, 
+          observacoesVisita, utenteNome, utenteNif, numeroPeriodo, 
+          periodoInicio, periodoFim, periodoEstado, motivoReabertura, 
+          dataSolicitacaoReabertura, statusReabertura, tipoPeriodo, 
+          (
+            SELECT GROUP_CONCAT(CONCAT(tm.tecnicoId, ':', COALESCE(u2.nome, tm.nome, CONCAT('Técnico ', tm.tecnicoId))) SEPARATOR '|')
+            FROM tecnicomonitorizacao tm
+            LEFT JOIN utente u2 ON tm.tecnicoId = u2.id
+            WHERE tm.monitorizacaoId = processos_monitorados.id
+          ) as tecnicosSelecionados
+        FROM processos_monitorados
         
-        // Converter o resultado para o formato esperado
-        processos = Array.isArray(result) ? result.map((processo: any) => {
-          // Processar os técnicos selecionados da string concatenada
-          let tecnicosSelecionados = [];
-          
-          // Na consulta alternativa, podemos não ter o campo tecnicosSelecionados
-          // Então vamos fazer uma consulta adicional para obter os técnicos
-          try {
-            // Vamos buscar os técnicos diretamente usando Prisma
-            // Mas não vamos aguardar a promessa para não atrasar a resposta
-            // Os técnicos serão carregados posteriormente na interface
-            if (processo.tecnicosSelecionados) {
-              tecnicosSelecionados = processo.tecnicosSelecionados.split('|').map((tecnico: string) => {
-                const [id, nome] = tecnico.split(':');
-                return { id: parseInt(id), nome };
-              });
-            }
-          } catch (error) {
-            console.error("[DEBUG] Erro ao processar técnicos para processo", processo.id, error);
-          }
-
-          return {
-            id: processo.id,
-            utenteId: processo.utenteId,
-            periodoId: processo.periodoId,
-            relatorioPath: processo.relatorioPath,
-            parecerTecnicoPath: processo.parecerTecnicoPath,
-            rupePath: processo.rupePath,
-            rupeReferencia: processo.rupeReferencia,
-            rupePago: processo.rupePago === 1,
-            documentoFinalPath: processo.documentoFinalPath,
-            estado: processo.estado,
-            estadoProcesso: processo.estadoProcesso,
-            dataPrevistaVisita: processo.dataPrevistaVisita,
-            dataVisita: processo.dataVisita,
-            observacoesVisita: processo.observacoesVisita,
-            createdAt: processo.createdAt,
-            autorizacaoDirecao: processo.autorizacaoDirecao === 1,
-            utenteNome: processo.utenteNome,
-            utenteNif: processo.utenteNif,
-            numeroPeriodo: processo.numeroPeriodo,
-            periodoInicio: processo.periodoInicio,
-            periodoFim: processo.periodoFim,
-            tipoPeriodo: processo.tipoPeriodo,
-            tecnicosSelecionados
-          };
-        }) : [];
-
-        console.log(`Encontrados ${processos.length} processos com abordagem alternativa`);
-      } catch (fallbackError) {
-        console.error("Erro na abordagem alternativa:", fallbackError);
-        processos = [];
+        UNION ALL
+        
+        SELECT 
+          id, utenteId, periodoId, relatorioPath, parecerTecnicoPath, 
+          rupePath, rupeReferencia, rupePago, documentoFinalPath, estado, 
+          estadoProcesso, createdAt, NULL as dataPrevistaVisita, NULL as dataVisita, 
+          NULL as observacoesVisita, utenteNome, utenteNif, numeroPeriodo, 
+          periodoInicio, periodoFim, periodoEstado, motivoReabertura, 
+          dataSolicitacaoReabertura, statusReabertura, tipoPeriodo, 
+          /* Na segunda consulta (periodos_solicitados), o id é sempre NULL, portanto não faz sentido
+           tentar obter técnicos baseados no id. Em vez disso, tentamos obter técnicos baseados no periodoId */
+          (
+            SELECT GROUP_CONCAT(CONCAT(tm.tecnicoId, ':', COALESCE(u2.nome, tm.nome, CONCAT('Técnico ', tm.tecnicoId))) SEPARATOR '|')
+            FROM tecnicomonitorizacao tm
+            LEFT JOIN utente u2 ON tm.tecnicoId = u2.id
+            /* Tentar vincular à periodoId no caso de id NULL */
+            WHERE EXISTS (
+              SELECT 1 FROM monitorizacao m 
+              WHERE m.periodoId = periodos_solicitados.periodoId 
+              AND tm.monitorizacaoId = m.id
+            )
+          ) as tecnicosSelecionados
+        FROM periodos_solicitados
+        
+        ORDER BY createdAt DESC
+      `;
+      
+      try {
+        // Primeiro, vamos verificar se temos registros na tabela tecnicomonitorizacao
+        const checkTecnicos = await prisma.$queryRawUnsafe(`
+          SELECT COUNT(*) as count FROM tecnicomonitorizacao
+        `);
+        console.log('Contagem de registros na tabela tecnicomonitorizacao:', checkTecnicos);
+        
+        // Verificar alguns registros de exemplo para debug
+        const sampleTecnicos = await prisma.$queryRawUnsafe(`
+          SELECT tm.monitorizacaoId, tm.tecnicoId, u.nome 
+          FROM tecnicomonitorizacao tm
+          LEFT JOIN utente u ON tm.tecnicoId = u.id
+          LIMIT 5
+        `);
+        console.log('Exemplo de técnicos da tabela:', sampleTecnicos);
+        
+        const result = await prisma.$queryRawUnsafe<Processo[]>(query);
+        processos = Array.isArray(result) ? result : [];
+        console.log('Query result:', JSON.stringify(result, null, 2));
+        
+        // Verificar especificamente se os processos têm técnicos associados
+        console.log('Verificando técnicos nos processos:');
+        for (const processo of processos.slice(0, 3)) { // Apenas os 3 primeiros para não sobrecarregar o log
+          console.log(`Processo ${processo.id} - tecnicosSelecionados:`, processo.tecnicosSelecionados);
+        }
+      } catch (queryError) {
+        console.error('Erro na execução da query:', queryError);
+        throw new Error(`Erro na execução da query: ${queryError instanceof Error ? queryError.message : 'Erro desconhecido'}`);
       }
-    }
+      
+      // Processar os tecnicos para cada processo
+      for (const processo of processos) {
+        if (processo.id) {
+          try {
+            // Usar diretamente a tabela utente para buscar técnicos
+            console.log(`Buscando técnicos da tabela utente para monitorizacaoId=${processo.id}`);
+            let tecnicos: Tecnico[] = [];
+            
+            try {
+              tecnicos = await prisma.$queryRawUnsafe<Tecnico[]>(`
+                SELECT u.id, u.nome
+                FROM tecnicomonitorizacao tm
+                JOIN utente u ON tm.tecnicoId = u.id
+                WHERE tm.monitorizacaoId = ?
+              `, [processo.id]);
+              console.log(`Técnicos encontrados na tabela utente:`, tecnicos);
+            } catch (utenteError) {
+              console.error(`Erro ao buscar tecnicos da tabela utente:`, utenteError);
+              
+              // Tentar buscar diretamente da tabela tecnicomonitorizacao se tiver o campo nome
+              try {
+                const checkNomeColumn = await prisma.$queryRawUnsafe(`
+                  SELECT COUNT(*) as count FROM information_schema.columns
+                  WHERE table_schema = DATABASE() 
+                  AND table_name = 'tecnicomonitorizacao' 
+                  AND column_name = 'nome'
+                `);
+                
+                const hasNomeColumn = Array.isArray(checkNomeColumn) && 
+                  checkNomeColumn.length > 0 && 
+                  (checkNomeColumn[0] as any).count > 0;
+                
+                if (hasNomeColumn) {
+                  // Buscar técnicos diretamente da tabela tecnicomonitorizacao
+                  // Usar $queryRaw com template literals em vez de $queryRawUnsafe com array de parâmetros
+                  tecnicos = await prisma.$queryRaw<Tecnico[]>`
+                    SELECT tecnicoId as id, nome
+                    FROM tecnicomonitorizacao
+                    WHERE monitorizacaoId = ${Number(processo.id)}
+                  `;
+                  
+                  // Se não encontrou técnicos com nome, tente buscar IDs e usar nomes genéricos
+                  if (tecnicos.length === 0) {
+                    const tecnicosIds = await prisma.$queryRawUnsafe<{id: string}[]>(`
+                      SELECT tecnicoId as id
+                      FROM tecnicomonitorizacao
+                      WHERE monitorizacaoId = ?
+                    `, [processo.id]);
+                    
+                    tecnicos = tecnicosIds.map(t => ({
+                      id: t.id,
+                      nome: `Técnico ${t.id}`
+                    }));
+                  }
+                }
+              } catch (directError) {
+                console.error(`Erro ao buscar tecnicos diretamente da tabela tecnicomonitorizacao:`, directError);
+              }
+            }
+            
+            processo.tecnicosSelecionados = tecnicos.length > 0 ?
+              tecnicos.map(t => `${t.id}:${t.nome}`).join('|') :
+              null;
+          } catch (tecnicoError) {
+            console.error(`Erro ao buscar tecnicos para processo ${processo.id}:`, tecnicoError);
+            processo.tecnicosSelecionados = null;
+          }
+        }
+      }
+      
+      console.log(`Encontrados ${processos.length} processos de monitorizacao`);
 
-    return NextResponse.json({ 
-      processos: processos 
-    });
+      return NextResponse.json({ processos });
+    } catch (error) {
+      console.error('Erro ao buscar processos:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      return NextResponse.json({ 
+        error: 'Erro ao buscar processos',
+        details: errorMessage 
+      }, { status: 500 });
+    }
   } catch (error) {
-    console.error("Erro ao buscar processos de monitorização:", error);
-    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-    return NextResponse.json(
-      { 
-        error: "Erro ao buscar processos de monitorização", 
-        message: errorMessage,
-        timestamp: new Date().toISOString()
-      },
-      { status: 500 }
-    );
+    console.error('Erro na rota:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    return NextResponse.json({ 
+      error: 'Erro interno do servidor',
+      details: errorMessage 
+    }, { status: 500 });
   }
 }

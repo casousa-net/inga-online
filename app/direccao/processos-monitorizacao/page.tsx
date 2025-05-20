@@ -220,6 +220,23 @@ export default function DirecaoProcessosMonitorizacao() {
       const data = await response.json();
       console.log(`Dados recebidos da API: ${data.length} processos`);
       
+      // Debug para verificar a estrutura dos técnicos
+      if (data.length > 0) {
+        console.log('Estrutura do primeiro processo:', data[0]);
+        console.log('Técnicos do primeiro processo:', data[0].tecnicosSelecionados);
+        
+        if (data[0].tecnicosSelecionados) {
+          console.log('Tipo dos técnicos:', typeof data[0].tecnicosSelecionados);
+          if (typeof data[0].tecnicosSelecionados === 'string') {
+            console.log('Técnicos estão vindo como string e precisam ser convertidos');
+          } else if (Array.isArray(data[0].tecnicosSelecionados)) {
+            console.log('Técnicos estão vindo como array, quantidade:', data[0].tecnicosSelecionados.length);
+          }
+        } else {
+          console.log('Nenhum técnico encontrado para este processo');
+        }
+      }
+      
       // Verificar se os dados estão vazios
       if (!data || data.length === 0) {
         console.log("Nenhum processo encontrado");
@@ -251,9 +268,51 @@ export default function DirecaoProcessosMonitorizacao() {
           relatorioPath: processo.relatorioPath || null,
           parecerTecnicoPath: processo.parecerTecnicoPath || null,
           documentoFinalPath: processo.documentoFinalPath || null,
-          tecnicosSelecionados: Array.isArray(processo.tecnicosSelecionados)
-            ? processo.tecnicosSelecionados
-            : []
+          tecnicosSelecionados: (() => {
+            // Processar tecnicosSelecionados com base no formato recebido
+            console.log(`Processando técnicos para processo ${processo.id}, valor:`, processo.tecnicosSelecionados);
+            
+            // Se não houver dados, retornar array vazio
+            if (!processo.tecnicosSelecionados) {
+              return [];
+            }
+            
+            // Se for uma string, processar o formato "id:nome|id2:nome2"
+            if (typeof processo.tecnicosSelecionados === 'string') {
+              console.log(`Técnicos recebidos como string para processo ${processo.id}`);
+              return processo.tecnicosSelecionados.split('|')
+                .filter((t: string) => t.trim() !== '')
+                .map((tecnico: string) => {
+                  const [id, nome] = tecnico.split(':');
+                  return { id: Number(id), nome: nome || `Técnico ${id}` };
+                });
+            }
+            
+            // Se for um array de objetos já formatados corretamente, usá-los diretamente
+            if (Array.isArray(processo.tecnicosSelecionados)) {
+              if (processo.tecnicosSelecionados.length > 0) {
+                console.log(`Técnicos recebidos como array para processo ${processo.id}, quantidade: ${processo.tecnicosSelecionados.length}`);
+                
+                // Verificar se os elementos do array já são objetos com id e nome
+                const primeiroItem = processo.tecnicosSelecionados[0];
+                if (typeof primeiroItem === 'object' && primeiroItem !== null && 'id' in primeiroItem && 'nome' in primeiroItem) {
+                  return processo.tecnicosSelecionados;
+                }
+                
+                // Se forem strings no formato "id:nome", processá-los
+                if (typeof primeiroItem === 'string' && primeiroItem.includes(':')) {
+                  return processo.tecnicosSelecionados.map((tecnico: string) => {
+                    const [id, nome] = tecnico.split(':');
+                    return { id: Number(id), nome: nome || `Técnico ${id}` };
+                  });
+                }
+              }
+            }
+            
+            // Se for outro formato que não conseguimos processar, retornar array vazio
+            console.log(`Formato de técnicos não reconhecido para processo ${processo.id}:`, processo.tecnicosSelecionados);
+            return [];
+          })()
         };
         
         // Buscar informações adicionais sobre a visita se o processo estiver em um estado relevante
@@ -579,6 +638,16 @@ export default function DirecaoProcessosMonitorizacao() {
     try {
       setIsSubmitting(true);
       console.log("Enviando requisição para selecionar técnicos...");
+      console.log("Dados enviados:", {
+        monitorizacaoId: selectedProcesso.id,
+        tecnicosIds: selectedTecnicos,
+      });
+
+      // Simplificar a requisição para evitar problemas
+      const requestData = {
+        monitorizacaoId: selectedProcesso.id,
+        tecnicosIds: selectedTecnicos.map(id => Number(id)), // Converter para números
+      };
 
       const response = await fetch(
         "/api/monitorizacao/direccao/selecionar-tecnicos",
@@ -587,49 +656,38 @@ export default function DirecaoProcessosMonitorizacao() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            monitorizacaoId: selectedProcesso.id,
-            tecnicosIds: selectedTecnicos,
-          }),
+          body: JSON.stringify(requestData),
         },
       );
 
-      let responseData;
-      try {
-        // Tentar ler o corpo da resposta como JSON
-        responseData = await response.json();
-      } catch (jsonError) {
-        // Se não for JSON, ler como texto
-        const textResponse = await response.text();
-        console.error("Resposta não é JSON:", textResponse);
-        throw new Error(`Resposta inesperada do servidor: ${textResponse}`);
+      // Verificar se a resposta é válida
+      if (!response.ok) {
+        let errorMessage = `Erro ao selecionar técnicos: ${response.status} ${response.statusText}`;
+        
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          // Ignorar erro de parse JSON
+        }
+        
+        throw new Error(errorMessage);
       }
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Resposta da API:", data);
+      // Processar resposta bem-sucedida
+      const responseData = await response.json();
+      console.log("Operação bem-sucedida:", responseData);
 
-        toast({
-          title: "Sucesso",
-          description: data.message || "Técnicos selecionados com sucesso",
-        });
+      toast({
+        title: "Sucesso",
+        description: "Técnicos selecionados com sucesso",
+      });
 
-        setIsTecnicosDialogOpen(false);
-        setSelectedTecnicos([]);
-        fetchProcessos(); // Atualizar a lista de processos
-      } else {
-        const errorMessage =
-          responseData?.error ||
-          responseData?.message ||
-          `Erro ao selecionar técnicos: ${response.status} ${response.statusText}`;
-        console.error("Erro detalhado:", errorMessage);
-
-        toast({
-          title: "Erro",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      }
+      setIsTecnicosDialogOpen(false);
+      setSelectedTecnicos([]);
+      await fetchProcessos(); // Atualizar a lista de processos
     } catch (error) {
       console.error("Erro ao selecionar técnicos:", error);
 
@@ -788,15 +846,7 @@ export default function DirecaoProcessosMonitorizacao() {
 
                       {/* Botões para visualização de documentos baseados no estado do processo */}
                       {/* RUPE - Disponível quando o RUPE foi gerado */}
-                      {processo.rupePath &&
-                        [
-                          "AGUARDANDO_PAGAMENTO_RUPE",
-                          "AGUARDANDO_CONFIRMACAO_PAGAMENTO",
-                          "AGUARDANDO_VISITA",
-                          "AGUARDANDO_PARECER",
-                          "AGUARDANDO_DOCUMENTO_FINAL",
-                          "CONCLUIDO",
-                        ].includes(processo.estadoProcesso) && (
+                      {processo.rupePath && (
                           <Button
                             size="sm"
                             variant="outline"

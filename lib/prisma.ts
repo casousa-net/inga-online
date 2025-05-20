@@ -2,10 +2,19 @@
 import { PrismaClient } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 
+// Declarar o tipo global para o PrismaClient
+declare global {
+  var prisma: PrismaClient | undefined;
+}
+
 // Configuração do cliente Prisma com log para desenvolvimento
-export const prisma = new PrismaClient({
+export const prisma = global.prisma || new PrismaClient({
   log: ['error'],
 });
+
+if (process.env.NODE_ENV !== 'production') {
+  global.prisma = prisma;
+}
 
 // Função para verificar a conexão com o banco de dados
 export async function checkDatabaseConnection() {

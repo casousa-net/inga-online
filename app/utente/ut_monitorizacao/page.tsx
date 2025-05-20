@@ -1,15 +1,34 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ToastContainer, toast } from '@/components/ui/use-toast';
+import { AlertTriangle, CheckSquare } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Upload, CheckCircle2, XCircle, RotateCw, Send, AlertTriangle, FileText } from 'lucide-react';
+import { formatReaberturaMotivo } from '@/lib/utils/formatReaberturaMotivo';
+import { AlertCircle, Calendar, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Eye, FileText, Loader2, Plus, RotateCw, Upload, User, XCircle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { ToastContainer } from '@/components/ui/use-toast';
+import { ReaberturaModals } from './ReaberturaModals';
+
+type TecnicoSelecionado = {
+  id: number;
+  nome: string;
+};
 
 type PeriodoMonitorizacao = {
   id: number;
@@ -17,11 +36,36 @@ type PeriodoMonitorizacao = {
   numeroPeriodo: number;
   dataInicio: string;
   dataFim: string;
-  estado: 'ABERTO' | 'FECHADO' | 'AGUARDANDO_REAVALIACAO' | 'REABERTURA_SOLICITADA';
+  estado: 'ABERTO' | 'FECHADO' | 'AGUARDANDO_REAVALIACAO' | 'REABERTURA_SOLICITADA' | 'SOLICITADA_REABERTURA' | 'REABERTO';
+  statusReabertura?: 'PENDENTE' | 'AGUARDANDO_PAGAMENTO' | 'AGUARDANDO_CONFIRMACAO_PAGAMENTO' | 'APROVADA' | 'REJEITADA' | null;
+  motivoReabertura?: string | null;
+  dataReaberturaAprovada?: string | null;
+  dataValidadeReabertura?: string | null;
+  dataSolicitacaoReabertura?: string | null;
+  rupeReferencia?: string | null;
+  rupeNumero?: string | null;
+  rupePago?: boolean;
+  rupeValidado?: boolean;
   monitorizacao?: {
     id: number;
     relatorioPath: string;
-    estado: 'PENDENTE' | 'APROVADO' | 'REJEITADO';
+    parecerTecnicoPath?: string;
+    rupePath?: string;
+    rupeReferencia?: string;
+    rupePago?: boolean;
+    documentoFinalPath?: string;
+    estado: 'PENDENTE' | 'APROVADO' | 'REJEITADO' | 'CARECE_MELHORIAS' | 'FINALIZADO';
+    estadoProcesso: 'AGUARDANDO_PARECER' | 'AGUARDANDO_RUPE' | 'AGUARDANDO_PAGAMENTO' | 'AGUARDANDO_CONFIRMACAO_PAGAMENTO' | 'AGUARDANDO_VISITA' | 'AGUARDANDO_DOCUMENTO_FINAL' | 'CONCLUIDO';
+    dataPrevistaVisita?: string;
+    dataVisita?: string;
+    observacoesVisita?: string;
+    tecnicosSelecionados?: TecnicoSelecionado[];
+  };
+  visita?: {
+    id: number;
+    dataPrevista: string;
+    dataRealizada?: string;
+    observacoes?: string;
   };
 };
 
@@ -32,18 +76,84 @@ type ConfiguracaoMonitorizacao = {
 };
 
 export default function UtenteMonitorizacao() {
+  // ...
+  const handlePagarRupe = async (monitorizacaoId: number, periodoId?: number) => {
+    try {
+      console.log('Confirmando pagamento de RUPE:', { monitorizacaoId, periodoId });
+      
+      // Preparar os dados com base no tipo de pagamento (monitorização regular ou reabertura)
+      const requestData = periodoId 
+        ? { periodoId } // Para reabertura, enviamos o ID do período
+        : { monitorizacaoId }; // Para monitorização regular, enviamos o ID da monitorização
+      
+      const response = await fetch('/api/monitorizacao/utente/pagar-rupe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao registrar pagamento do RUPE');
+      }
+      
+      toast({
+        title: 'Pagamento enviado',
+        description: 'Pagamento do RUPE registrado com sucesso! Aguarde validação.',
+      });
+      
+      await fetchPeriodos();
+    } catch (error) {
+      console.error('Erro ao confirmar pagamento:', error);
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Erro ao registrar pagamento do RUPE',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const [periodos, setPeriodos] = useState<PeriodoMonitorizacao[]>([]);
   const [configuracao, setConfiguracao] = useState<ConfiguracaoMonitorizacao | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadingPeriodoId, setUploadingPeriodoId] = useState<number | null>(null);
+  const [isReaberturaModalOpen, setIsReaberturaModalOpen] = useState(false);
+  const [selectedPeriodoId, setSelectedPeriodoId] = useState<number | null>(null);
+  const [motivoReabertura, setMotivoReabertura] = useState('');
+  const [isRupeModalOpen, setIsRupeModalOpen] = useState(false);
+  const [requerRupe, setRequerRupe] = useState(false);
+  const [isRupeConfirmationModalOpen, setIsRupeConfirmationModalOpen] = useState(false);
+  const [processandoReabertura, setProcessandoReabertura] = useState(false);
 
-  const formatarData = (data: string) => {
+  const formatarData = (data: string | null | undefined) => {
+    if (!data) return 'Data não disponível';
+    
     try {
-      return format(parseISO(data), 'PP', { locale: ptBR });
+      // Tentar converter para Date diretamente
+      const dateObj = new Date(data);
+      
+      // Verificar se a data é válida
+      if (isNaN(dateObj.getTime())) {
+        // Tentar formatos alternativos
+        if (data.includes('T')) {
+          // Formato ISO
+          return format(parseISO(data), 'dd/MM/yyyy', { locale: ptBR });
+        } else if (data.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          // Formato YYYY-MM-DD
+          return format(parseISO(data), 'dd/MM/yyyy', { locale: ptBR });
+        } else {
+          console.log('Formato de data não reconhecido:', data);
+          return 'Formato inválido';
+        }
+      }
+      
+      // Data válida
+      return format(dateObj, 'dd/MM/yyyy', { locale: ptBR });
     } catch (e) {
-      return data;
+      console.error('Erro ao formatar data:', e, data);
+      return 'Erro no formato';
     }
   };
 
@@ -51,7 +161,7 @@ export default function UtenteMonitorizacao() {
     try {
       setLoading(true);
       const utenteId = localStorage.getItem('utenteId');
-      
+
       if (!utenteId) {
         setError('Utilizador não autenticado');
         setLoading(false);
@@ -59,19 +169,19 @@ export default function UtenteMonitorizacao() {
       }
 
       const response = await fetch(`/api/monitorizacao/periodos?utenteId=${utenteId}`);
-      
+
       if (response.status === 404) {
-        setError('Configuração de monitorização não encontrada. Por favor, contacte o administrador.');
+        setError('NO_CONFIG');
         setPeriodos([]);
         setConfiguracao(null);
         return;
       }
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Erro ao carregar períodos de monitorização');
       }
-      
+
       const data = await response.json();
       setConfiguracao(data.configuracao);
       setPeriodos(data.periodos || []);
@@ -107,24 +217,56 @@ export default function UtenteMonitorizacao() {
     try {
       setUploadingPeriodoId(periodoId);
       const formData = new FormData();
-      formData.append('file', selectedFile);
+      const utenteId = localStorage.getItem('utenteId');
+
+      if (!utenteId) {
+        toast({
+          title: 'Erro',
+          description: 'ID do utente não encontrado. Por favor, faça login novamente.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Verificar se o período já tem um relatório
+      const periodoAtual = periodos.find(p => p.id === periodoId);
+      if (periodoAtual && periodoAtual.monitorizacao) {
+        toast({
+          title: 'Erro',
+          description: 'O relatório só pode ser enviado 1 por vez para cada período.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Adicionar dados ao formData
+      formData.append('utenteId', utenteId);
+      formData.append('relatorio', selectedFile); // Usando 'relatorio' para corresponder à API
       formData.append('periodoId', periodoId.toString());
+
+      console.log('Enviando relatório:', {
+        utenteId,
+        periodoId,
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size
+      });
 
       const response = await fetch('/api/monitorizacao/relatorios', {
         method: 'POST',
         body: formData,
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Erro ao enviar relatório');
+        throw new Error(responseData.error || 'Erro ao enviar relatório');
       }
 
       toast({
         title: 'Sucesso',
         description: 'Relatório enviado com sucesso!',
       });
-      
+
       await fetchPeriodos();
       setSelectedFile(null);
     } catch (error) {
@@ -139,22 +281,99 @@ export default function UtenteMonitorizacao() {
     }
   };
 
-  const handleReabertura = async (periodoId: number) => {
+  // Abrir o modal de solicitação de reabertura
+  const openReaberturaModal = (periodoId: number) => {
+    setSelectedPeriodoId(periodoId);
+    setMotivoReabertura('');
+    setIsReaberturaModalOpen(true);
+  };
+
+  // Processar a solicitação de reabertura
+  const handleReabertura = async () => {
+    if (!selectedPeriodoId) {
+      console.error('ID do período não selecionado');
+      return;
+    }
+    
     try {
-      const response = await fetch(`/api/monitorizacao/periodos/${periodoId}/reabrir`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Erro ao solicitar reabertura');
+      setProcessandoReabertura(true);
+      
+      // Obter o ID do utente do localStorage
+      const utenteId = localStorage.getItem('utenteId');
+      if (!utenteId) {
+        toast({
+          title: 'Sessão expirada',
+          description: 'Por favor, faça login novamente.',
+          variant: 'destructive',
+        });
+        return;
       }
-
-      toast({
-        title: 'Sucesso',
-        description: 'Solicitação de reabertura enviada com sucesso!',
+      
+      // Verificar se o motivo de reabertura foi preenchido
+      if (!motivoReabertura || motivoReabertura.trim() === '') {
+        toast({
+          title: 'Erro',
+          description: 'Por favor, informe o motivo da reabertura.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      console.log('Enviando solicitação de reabertura:', {
+        periodoId: selectedPeriodoId,
+        motivoReabertura,
+        utenteId: parseInt(utenteId)
       });
       
+      // Enviar requisição com as credenciais para garantir que os cookies sejam enviados
+      const response = await fetch(`/api/monitorizacao/periodos/${selectedPeriodoId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin', // Importante: inclui os cookies na requisição
+        body: JSON.stringify({ 
+          action: 'solicitar-reabertura',
+          motivoReabertura: motivoReabertura,
+          utenteId: parseInt(utenteId) // Incluir o ID do utente como fallback
+        }),
+      });
+
+      // Verificar se a resposta foi bem-sucedida
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData = {};
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          console.error('Erro ao parsear resposta:', errorText);
+        }
+        console.error('Erro na solicitação de reabertura:', errorData);
+        throw new Error((errorData as any).error || 'Erro ao solicitar reabertura');
+      }
+
+      // Parsear a resposta com tratamento de erro
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        console.error('Erro ao parsear resposta JSON:', e);
+        data = {};
+      }
+      
+      setIsReaberturaModalOpen(false);
+      
+      // Verificar se a reabertura requer pagamento de RUPE
+      if (data.requerRupe) {
+        setRequerRupe(true);
+        setIsRupeModalOpen(true);
+      } else {
+        toast({
+          title: 'Sucesso',
+          description: 'Solicitação de reabertura enviada com sucesso!',
+        });
+      }
+
       await fetchPeriodos();
     } catch (error) {
       console.error('Erro ao solicitar reabertura:', error);
@@ -163,13 +382,59 @@ export default function UtenteMonitorizacao() {
         description: error instanceof Error ? error.message : 'Erro ao solicitar reabertura',
         variant: 'destructive',
       });
+    } finally {
+      setProcessandoReabertura(false);
+    }
+  };
+  
+  // Confirmar pagamento de RUPE para reabertura
+  const handleConfirmarPagamentoRupe = async () => {
+    if (!selectedPeriodoId) return;
+    
+    try {
+      setProcessandoReabertura(true);
+      const response = await fetch(`/api/monitorizacao/periodos/${selectedPeriodoId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'confirmar-pagamento-rupe' }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao confirmar pagamento de RUPE');
+      }
+
+      setIsRupeConfirmationModalOpen(false);
+      setIsRupeModalOpen(false);
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Pagamento de RUPE para reabertura confirmado com sucesso!',
+      });
+
+      await fetchPeriodos();
+    } catch (error) {
+      console.error('Erro ao confirmar pagamento de RUPE:', error);
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Erro ao confirmar pagamento de RUPE',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessandoReabertura(false);
     }
   };
 
   const handleSolicitarReavaliacao = async (periodoId: number) => {
     try {
-      const response = await fetch(`/api/monitorizacao/periodos/${periodoId}/solicitar-reavaliacao`, {
-        method: 'POST',
+      const response = await fetch(`/api/monitorizacao/periodos/${periodoId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'reavaliar' }),
       });
 
       if (!response.ok) {
@@ -181,7 +446,7 @@ export default function UtenteMonitorizacao() {
         title: 'Sucesso',
         description: 'Solicitação de reavaliação enviada com sucesso!',
       });
-      
+
       await fetchPeriodos();
     } catch (error) {
       console.error('Erro ao solicitar reavaliação:', error);
@@ -195,28 +460,112 @@ export default function UtenteMonitorizacao() {
 
   const renderEstado = (periodo: PeriodoMonitorizacao) => {
     if (periodo.monitorizacao) {
-      switch (periodo.monitorizacao.estado) {
-        case 'APROVADO':
+      // Primeiro verificamos o estadoProcesso para mostrar em que etapa está o processo
+      switch (periodo.monitorizacao.estadoProcesso) {
+        case 'AGUARDANDO_PARECER':
           return {
-            icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
-            text: 'Relatório Aprovado',
-            className: 'text-green-700',
+            icon: <RotateCw className="h-5 w-5 text-blue-500 animate-spin" />,
+            text: 'Aguardando Parecer Técnico',
+            className: 'text-blue-700',
           };
-        case 'REJEITADO':
+        case 'AGUARDANDO_RUPE':
           return {
-            icon: <XCircle className="h-5 w-5 text-red-500" />,
-            text: 'Relatório Rejeitado',
-            className: 'text-red-700',
+            icon: <RotateCw className="h-5 w-5 text-purple-500 animate-spin" />,
+            text: 'Aguardando RUPE',
+            className: 'text-purple-700',
           };
-        case 'PENDENTE':
+        case 'AGUARDANDO_PAGAMENTO':
           return {
-            icon: <RotateCw className="h-5 w-5 text-yellow-500 animate-spin" />,
-            text: 'Aguardando Avaliação',
-            className: 'text-yellow-700',
+            icon: <AlertTriangle className="h-5 w-5 text-orange-500" />,
+            text: 'Aguardando Pagamento RUPE',
+            className: 'text-orange-700',
+          };
+        case 'AGUARDANDO_VISITA':
+          // Verificar se tem data prevista para mostrar
+          if (periodo.monitorizacao.dataPrevistaVisita) {
+            const dataPrevista = new Date(periodo.monitorizacao.dataPrevistaVisita);
+            const dataFormatada = format(dataPrevista, 'dd/MM/yyyy', { locale: ptBR });
+            return {
+              icon: <Calendar className="h-5 w-5 text-indigo-500" />,
+              text: `Visita Técnica Agendada para ${dataFormatada}`,
+              className: 'text-indigo-700',
+              extraContent: periodo.monitorizacao.tecnicosSelecionados && periodo.monitorizacao.tecnicosSelecionados.length > 0 ? (
+                <div className="mt-2 text-sm text-gray-700 border border-gray-200 rounded p-2">
+                  <div className="font-medium mb-1">Técnicos designados:</div>
+                  <ul className="list-disc pl-5">
+                    {periodo.monitorizacao.tecnicosSelecionados.map((tecnico) => (
+                      <li key={tecnico.id}>{tecnico.nome}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null,
+            };
+          }
+          return {
+            icon: <RotateCw className="h-5 w-5 text-indigo-500 animate-spin" />,
+            text: 'Aguardando Visita Técnica',
+            className: 'text-indigo-700',
+          };
+        case 'AGUARDANDO_DOCUMENTO_FINAL':
+          // Verificar se a visita já foi realizada para mostrar a data
+          if (periodo.monitorizacao.dataVisita) {
+            const dataVisita = new Date(periodo.monitorizacao.dataVisita);
+            const dataFormatada = format(dataVisita, 'dd/MM/yyyy', { locale: ptBR });
+            return {
+              icon: <CheckSquare className="h-5 w-5 text-teal-500" />,
+              text: `Visita Técnica Realizada em ${dataFormatada}`,
+              className: 'text-teal-700',
+            };
+          }
+          return {
+            icon: <RotateCw className="h-5 w-5 text-teal-500 animate-spin" />,
+            text: 'Aguardando Documento Final',
+            className: 'text-teal-700',
+          };
+        case 'CONCLUIDO':
+          // Para processos concluídos, verificamos o estado final
+          switch (periodo.monitorizacao.estado) {
+            case 'APROVADO':
+              return {
+                icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
+                text: 'Processo Aprovado',
+                className: 'text-green-700',
+              };
+            case 'REJEITADO':
+              return {
+                icon: <XCircle className="h-5 w-5 text-red-500" />,
+                text: 'Processo Rejeitado',
+                className: 'text-red-700',
+              };
+            case 'CARECE_MELHORIAS':
+              return {
+                icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
+                text: 'Carece de Melhorias',
+                className: 'text-amber-700',
+              };
+            case 'FINALIZADO':
+              return {
+                icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
+                text: 'Processo Finalizado',
+                className: 'text-green-700',
+              };
+            default:
+              return {
+                icon: <RotateCw className="h-5 w-5 text-gray-500" />,
+                text: 'Em Processamento',
+                className: 'text-gray-700',
+              };
+          }
+        default:
+          return {
+            icon: <RotateCw className="h-5 w-5 text-gray-500" />,
+            text: 'Em Processamento',
+            className: 'text-gray-700',
           };
       }
     }
 
+    // Para períodos sem monitorizacao, mostramos o estado do período
     switch (periodo.estado) {
       case 'ABERTO':
         return {
@@ -260,201 +609,678 @@ export default function UtenteMonitorizacao() {
   }
 
   if (error) {
-    return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg shadow">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <AlertTriangle className="h-5 w-5 text-yellow-400" />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800">Atenção</h3>
-              <div className="mt-2 text-sm text-yellow-700">
-                <p>{error}</p>
-              </div>
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  onClick={fetchPeriodos}
-                  className="inline-flex items-center"
-                >
-                  <RotateCw className="mr-2 h-4 w-4" />
-                  Tentar novamente
-                </Button>
-              </div>
+    if (error === 'NO_CONFIG') {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-6">
+          <div className="bg-white border border-yellow-300 rounded-xl shadow-lg px-8 py-10 max-w-xl w-full text-center">
+            <AlertTriangle className="mx-auto h-12 w-12 text-yellow-400 mb-4" />
+            <h2 className="text-lg font-bold text-yellow-800 mb-2">Nenhuma configuração encontrada</h2>
+            <p className="text-gray-700 mb-4">
+              Não foi encontrada nenhuma configuração de monitorização para o seu perfil.<br /><br />
+              Isto pode significar que ainda não foi criada uma configuração para si.<br /><br />
+              Se acredita que isto é um erro ou precisa de iniciar o acompanhamento, entre em contato com o administrador ou responsável pelo serviço.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <Button
+                variant="outline"
+                onClick={fetchPeriodos}
+                className="inline-flex items-center justify-center"
+              >
+                <RotateCw className="mr-2 h-4 w-4" />
+                Tentar novamente
+              </Button>
+              <a
+                href="mailto:geral@inga.gov.ao"
+                className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-secondary text-secondary-foreground border border-secondary shadow-sm hover:bg-secondary/80 transition"
+              >
+                Falar com administrador
+              </a>
             </div>
           </div>
+        </div>
+      );
+    }
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="max-w-5xl mx-auto">
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <Button onClick={fetchPeriodos} variant="outline">
+            <RotateCw className="mr-2 h-4 w-4" />
+            Tentar novamente
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container max-w-6xl mx-auto py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Monitorização Ambiental</h1>
-        <Button onClick={fetchPeriodos} variant="outline" size="sm">
-          <RotateCw className="mr-2 h-4 w-4" />
-          Atualizar
-        </Button>
-      </div>
+    <>
+      <div className="container mx-auto py-8 px-4">
 
-      {configuracao && (
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Configuração de Monitorização</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Tipo de Período</p>
-                <p className="font-medium">
-                  {configuracao.tipoPeriodo === 'ANUAL' && 'Anual'}
-                  {configuracao.tipoPeriodo === 'SEMESTRAL' && 'Semestral'}
-                  {configuracao.tipoPeriodo === 'TRIMESTRAL' && 'Trimestral'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Data de Início</p>
-                <p className="font-medium">{formatarData(configuracao.dataInicio)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <div className="max-w-5xl mx-auto space-y-8">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold mb-4">Monitorização Ambiental</h1>
+          <Button onClick={fetchPeriodos} variant="outline" size="sm">
+            <RotateCw className="mr-2 h-4 w-4" />
+            Atualizar
+          </Button>
+        </div>
 
-      <div className="space-y-6">
-        <h2 className="text-xl font-semibold">Períodos de Monitorização</h2>
-        
-        {periodos.length === 0 ? (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <FileText className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum período encontrado</h3>
-              <p className="mt-1 text-sm text-gray-500">Não há períodos de monitorização disponíveis no momento.</p>
+        {configuracao && (
+          <Card className="mb-8">
+            <CardContent className="p-6">
+              <h2 className="text-lg font-semibold mb-4">Configuração de Monitorização</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Tipo de Período</p>
+                  <p className="font-medium">
+                    {configuracao.tipoPeriodo === 'ANUAL' && 'Anual'}
+                    {configuracao.tipoPeriodo === 'SEMESTRAL' && 'Semestral'}
+                    {configuracao.tipoPeriodo === 'TRIMESTRAL' && 'Trimestral'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Data de Início</p>
+                  <p className="font-medium">{formatarData(configuracao.dataInicio)}</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
-        ) : (
-          <div className="space-y-4">
-            {periodos.map((periodo) => {
-              const estado = renderEstado(periodo);
-              return (
-                <Card key={periodo.id} className="overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="p-4 border-b flex justify-between items-center">
-                      <div>
-                        <h3 className="font-semibold">
-                          Período {periodo.numeroPeriodo}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {formatarData(periodo.dataInicio)} - {formatarData(periodo.dataFim)}
-                        </p>
-                      </div>
-                      <div className={`flex items-center ${estado.className}`}>
-                        {estado.icon}
-                        <span className="ml-2">{estado.text}</span>
-                      </div>
-                    </div>
+        )}
 
-                    <div className="p-4 bg-gray-50">
-                      {periodo.estado === 'ABERTO' && (
+        <div className="space-y-6">
+          <h2 className="text-xl font-semibold">Períodos de Monitorização</h2>
+
+          {periodos.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum período encontrado</h3>
+                <p className="mt-1 text-sm text-gray-500">Não há períodos de monitorização disponíveis no momento.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {periodos.map((periodo) => {
+                // Verificar o motivo do fechamento
+                const dataAtual = new Date();
+                const dataFim = new Date(periodo.dataFim);
+                
+                // Verificar se o período foi reaberto
+                const periodoReaberto = periodo.estado === 'REABERTO' || periodo.statusReabertura === 'APROVADA';
+                
+                // Um período só é considerado expirado se estiver além da data de fim E não estiver reaberto
+                const periodoExpirado = dataAtual > dataFim && !periodoReaberto;
+                
+                const relatorioRejeitado = periodo.monitorizacao?.estado === 'REJEITADO';
+                const periodoNaoIniciado = dataAtual < new Date(periodo.dataInicio);
+                
+                // Determinar a mensagem com base no estado
+                let estadoText = '';
+                let estadoClassName = '';
+                let mensagemAdicional = null;
+                let mostrarBotaoReabertura = false;
+                
+                if (periodo.monitorizacao?.estado === 'APROVADO') {
+                  estadoText = 'Aprovado';
+                  estadoClassName = 'text-green-600';
+                } else if (periodo.monitorizacao?.estado === 'REJEITADO') {
+                  estadoText = 'Rejeitado';
+                  estadoClassName = 'text-red-600';
+                  mensagemAdicional = (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded-md">
+                      <p className="text-sm text-red-700">Seu relatório foi rejeitado. Por favor, corrija e envie novamente.</p>
+                    </div>
+                  );
+                  mostrarBotaoReabertura = true;
+                } else if (periodo.monitorizacao?.estado === 'PENDENTE') {
+                  estadoText = 'Em análise';
+                  estadoClassName = 'text-blue-600';
+                } else if (periodo.estado === 'FECHADO') {
+                  if (periodoExpirado) {
+                    estadoText = 'Período Expirado';
+                    estadoClassName = 'text-orange-600';
+                    mensagemAdicional = (
+                      <div className="mt-2 p-2 bg-amber-50 border border-amber-100 rounded-md">
+                        <p className="text-sm text-amber-700">O prazo para envio deste período já expirou.</p>
+                      </div>
+                    );
+                    mostrarBotaoReabertura = true;
+                  } else if (periodoNaoIniciado) {
+                    estadoText = 'Não Iniciado';
+                    estadoClassName = 'text-gray-500';
+                    mensagemAdicional = (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-md">
+                        <p className="text-sm text-blue-700">Este período ainda não está aberto para envio.</p>
+                      </div>
+                    );
+                  } else {
+                    estadoText = 'Fechado';
+                    estadoClassName = 'text-gray-600';
+                  }
+                } else if (periodo.estado === 'REABERTURA_SOLICITADA') {
+                  estadoText = 'Solicitação de Reabertura';
+                  estadoClassName = 'text-amber-600';
+                  mensagemAdicional = (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-md">
+                      <p className="text-sm text-blue-700">Sua solicitação de reabertura está em análise.</p>
+                    </div>
+                  );
+                } else if (periodo.estado === 'REABERTO' || periodo.statusReabertura === 'APROVADA') {
+                  estadoText = 'Período Reaberto';
+                  estadoClassName = 'text-green-600';
+                  
+                  // Calcular dias restantes para o fim da reabertura
+                  let diasRestantes = 7;
+                  let mensagemDias = 'Você tem 7 dias para enviar seu relatório.';
+                  
+                  if (periodo.dataValidadeReabertura) {
+                    const dataValidade = new Date(periodo.dataValidadeReabertura);
+                    const hoje = new Date();
+                    const diffTime = dataValidade.getTime() - hoje.getTime();
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays > 0) {
+                      diasRestantes = diffDays;
+                      mensagemDias = `Você tem ${diasRestantes} dia${diasRestantes !== 1 ? 's' : ''} para enviar seu relatório.`;
+                    } else {
+                      mensagemDias = 'Hoje é o último dia para enviar seu relatório!';
+                    }
+                  }
+                  
+                  mensagemAdicional = (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-100 rounded-md">
+                      <p className="text-sm text-green-700">Este período foi reaberto. {mensagemDias}</p>
+                    </div>
+                  );
+                } else {
+                  estadoText = 'Aberto';
+                  estadoClassName = 'text-green-600';
+                }
+                
+                const estado = {
+                  text: estadoText,
+                  className: estadoClassName,
+                  icon: periodo.monitorizacao?.estado === 'APROVADO' ? <CheckCircle2 className="h-4 w-4" /> :
+                    periodo.monitorizacao?.estado === 'REJEITADO' ? <XCircle className="h-4 w-4" /> :
+                    <RotateCw className="h-4 w-4" />
+                };
+
+                return (
+                  <Card className="overflow-hidden" key={periodo.id}>
+                    <CardContent className="p-0">
+                      <div className="p-4 border-b flex justify-between items-center">
                         <div>
-                          <h4 className="font-medium mb-2">Enviar Relatório</h4>
-                          <div className="flex items-end gap-2">
-                            <div className="flex-1">
-                              <Label htmlFor={`file-${periodo.id}`} className="sr-only">
-                                Relatório
-                              </Label>
-                              <Input
-                                id={`file-${periodo.id}`}
-                                type="file"
-                                accept=".pdf,.doc,.docx"
-                                onChange={handleFileChange}
-                                disabled={uploadingPeriodoId === periodo.id}
-                              />
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                Formatos aceitos: .pdf, .doc, .docx
+                          <h3 className="font-medium">
+                            Período {periodo.numeroPeriodo}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {formatarData(periodo.dataInicio)} - {formatarData(periodo.dataFim)}
+                          </p>
+                        </div>
+                        <div className={`flex items-center ${estado.className}`}>
+                          {estado.icon}
+                          <span className="ml-2">{estado.text}</span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-gray-50">
+                        {/* Período reaberto */}
+                        {periodoReaberto && !periodo.monitorizacao && (
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-medium">Período Reaberto</h4>
+                              <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200">
+                                Reaberto por 7 dias
+                              </Badge>
+                            </div>
+                            {mensagemAdicional}
+                            <div className="flex items-end gap-2 mt-4">
+                              <div className="flex-1">
+                                <Label htmlFor={`file-${periodo.id}`} className="sr-only">
+                                  Relatório
+                                </Label>
+                                <Input
+                                  id={`file-${periodo.id}`}
+                                  type="file"
+                                  accept=".pdf,.doc,.docx"
+                                  onChange={handleFileChange}
+                                  disabled={uploadingPeriodoId === periodo.id} />
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Formatos aceitos: .pdf, .doc, .docx
+                                </p>
+                              </div>
+                              <Button
+                                onClick={() => handleSubmitRelatorio(periodo.id)}
+                                disabled={!selectedFile || uploadingPeriodoId === periodo.id}
+                              >
+                                {uploadingPeriodoId === periodo.id ? (
+                                  <div>
+                                    <RotateCw className="mr-2 h-4 w-4 animate-spin" />
+                                    Enviando...
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    Enviar
+                                  </div>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Período aberto para envio de relatório */}
+                        {(periodo.estado === 'ABERTO') && !periodoReaberto && !periodo.monitorizacao && (
+                          <div>
+                            <h4 className="font-medium mb-2">Enviar Relatório</h4>
+                            <div className="flex items-end gap-2">
+                              <div className="flex-1">
+                                <Label htmlFor={`file-${periodo.id}`} className="sr-only">
+                                  Relatório
+                                </Label>
+                                <Input
+                                  id={`file-${periodo.id}`}
+                                  type="file"
+                                  accept=".pdf,.doc,.docx"
+                                  onChange={handleFileChange}
+                                  disabled={uploadingPeriodoId === periodo.id} />
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Formatos aceitos: .pdf, .doc, .docx
+                                </p>
+                              </div>
+                              <Button
+                                onClick={() => handleSubmitRelatorio(periodo.id)}
+                                disabled={!selectedFile || uploadingPeriodoId === periodo.id}
+                              >
+                                {uploadingPeriodoId === periodo.id ? (
+                                  <div>
+                                    <RotateCw className="mr-2 h-4 w-4 animate-spin" />
+                                    Enviando...
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    Enviar
+                                  </div>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Período fechado sem monitorizacao */}
+                        {periodo.estado === 'FECHADO' && !periodoReaberto && !periodo.monitorizacao && (
+                          <div>
+                            <h4 className="font-medium mb-2">Período {periodoExpirado ? 'Expirado' : 'Fechado'}</h4>
+                            {mensagemAdicional}
+                            <div className="mt-2">
+                              {mostrarBotaoReabertura && !['SOLICITADA_REABERTURA', 'REABERTURA_SOLICITADA'].includes(periodo.estado as string) && !['PENDENTE', 'AGUARDANDO_PAGAMENTO', 'AGUARDANDO_CONFIRMACAO_PAGAMENTO', 'APROVADA'].includes(periodo.statusReabertura as string) ? (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => openReaberturaModal(periodo.id)}
+                                >
+                                  Solicitar Reabertura
+                                </Button>
+                              ) : periodo.statusReabertura === 'PENDENTE' ? (
+                                <div className="p-2 bg-yellow-50 border border-yellow-100 rounded-md">
+                                  <p className="text-sm text-yellow-700">
+                                    <AlertCircle className="inline-block mr-1 h-4 w-4" />
+                                    Solicitação em análise. Aguardando envio de RUPE.
+                                  </p>
+                                </div>
+                              ) : periodo.statusReabertura === 'AGUARDANDO_PAGAMENTO' || periodo.statusReabertura === 'AGUARDANDO_CONFIRMACAO_PAGAMENTO' ? (
+                                <div className="p-2 bg-orange-50 border border-orange-100 rounded-md">
+                                  <p className="text-sm text-orange-700">
+                                    <AlertCircle className="inline-block mr-1 h-4 w-4" />
+                                    {periodo.statusReabertura === 'AGUARDANDO_PAGAMENTO' 
+                                      ? 'RUPE emitido. Aguardando seu pagamento.'
+                                      : 'Pagamento informado. Aguardando confirmação.'}
+                                  </p>
+                                  
+                                  {/* Exibir número da RUPE - verificar tanto no campo rupeNumero quanto nos metadados */}
+                                  {(() => {
+                                    // Inicializar com o valor do campo rupeNumero se existir
+                                    let rupeNumero = periodo.rupeNumero || null;
+                                    let rupePath = null;
+                                    
+                                    // Tentar extrair o número da RUPE e o caminho do PDF dos metadados
+                                    if (periodo.motivoReabertura) {
+                                      try {
+                                        const metadata = JSON.parse(periodo.motivoReabertura);
+                                        if (metadata) {
+                                          // Priorizar o número da RUPE dos metadados
+                                          if (metadata.rupeNumero) {
+                                            rupeNumero = metadata.rupeNumero;
+                                          }
+                                          
+                                          // Capturar o caminho do PDF
+                                          if (metadata.rupePath) {
+                                            rupePath = metadata.rupePath;
+                                          }
+                                        }
+                                      } catch (e) {
+                                        console.error('Erro ao parsear metadados da RUPE:', e);
+                                      }
+                                    }
+                                    
+                                    // Verificar também o campo rupeReferencia
+                                    if (!rupeNumero && periodo.rupeReferencia) {
+                                      rupeNumero = periodo.rupeReferencia;
+                                    }
+                                    
+                                    return (
+                                      <div className="mt-2 p-2 bg-white rounded border border-orange-200">
+                                        <p className="text-xs font-medium text-gray-500">Número da RUPE:</p>
+                                        <p className="text-sm font-medium">{rupeNumero || 'Não informado'}</p>
+                                        
+                                        {rupePath && (
+                                          <div className="mt-2">
+                                            <a 
+                                              href={rupePath} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className="text-sm text-blue-600 hover:underline flex items-center"
+                                            >
+                                              <FileText className="mr-1 h-4 w-4" />
+                                              Baixar PDF da RUPE
+                                            </a>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
+                                  
+                                  {/* O link para baixar o PDF da RUPE já está incluído acima */}
+                                  
+                                  {/* Mostrar botão apenas se ainda não confirmou o pagamento */}
+                                  {periodo.statusReabertura === 'AGUARDANDO_PAGAMENTO' && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handlePagarRupe(0, periodo.id)}
+                                      className="mt-2"
+                                    >
+                                      Confirmar Pagamento
+                                    </Button>
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Solicitação de reabertura enviada */}
+                        {periodo.estado === 'REABERTURA_SOLICITADA' && !periodo.monitorizacao && (
+                          <div>
+                            <h4 className="font-medium mb-2">Solicitação de Reabertura</h4>
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                              <p className="text-sm text-blue-700">
+                                Sua solicitação de reabertura está em análise. Você será notificado quando houver uma resposta.
                               </p>
                             </div>
-                            <Button
-                              onClick={() => handleSubmitRelatorio(periodo.id)}
-                              disabled={!selectedFile || uploadingPeriodoId === periodo.id}
-                            >
-                              {uploadingPeriodoId === periodo.id ? (
-                                <>
-                                  <RotateCw className="mr-2 h-4 w-4 animate-spin" />
-                                  Enviando...
-                                </>
+                          </div>
+                        )}
+
+                        {/* Monitorização em andamento - mostrar etapas do processo */}
+                        {periodo.monitorizacao && (
+                          <div className="space-y-4">
+                            <h4 className="font-medium">Acompanhamento do Processo</h4>
+
+                            {/* Etapa 1: Relatório Enviado */}
+                            <div className="flex items-start gap-3 border-l-2 border-green-500 pl-3">
+                              <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="font-medium text-green-700">Relatório Enviado</p>
+                                <div className="mt-1">
+                                  <a
+                                    href={periodo.monitorizacao.relatorioPath}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-blue-600 hover:underline flex items-center"
+                                  >
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    Visualizar relatório
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Etapa 1.5: Parecer Técnico */}
+                            <div className={`flex items-start gap-3 border-l-2 ${periodo.monitorizacao?.parecerTecnicoPath ? 'border-green-500' : 'border-gray-300'} pl-3`}>
+                              {periodo.monitorizacao?.parecerTecnicoPath ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                               ) : (
-                                <>
-                                  <Upload className="mr-2 h-4 w-4" />
-                                  Enviar
-                                </>
+                                <div className="h-5 w-5 rounded-full border-2 border-gray-300 flex-shrink-0 mt-0.5" />
                               )}
-                            </Button>
+                              <div>
+                                <p className={`font-medium ${periodo.monitorizacao?.parecerTecnicoPath ? 'text-green-700' : 'text-gray-700'}`}>
+                                  Parecer Técnico {periodo.monitorizacao?.parecerTecnicoPath ? 'Emitido' : 'Pendente'}
+                                </p>
+                                {periodo.monitorizacao?.parecerTecnicoPath && (
+                                  <div className="mt-1">
+                                    <a
+                                      href={`/api/documentos/${periodo.monitorizacao.parecerTecnicoPath}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm text-blue-600 hover:underline flex items-center"
+                                    >
+                                      <FileText className="mr-2 h-4 w-4" />
+                                      Visualizar parecer
+                                    </a>
+                                  </div>
+                                )}
+                                {!periodo.monitorizacao?.parecerTecnicoPath && periodo.monitorizacao?.estadoProcesso === 'AGUARDANDO_PARECER' && (
+                                  <p className="text-sm text-gray-500">Aguardando emissão do parecer técnico</p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Etapa 2: RUPE */}
+                            <div className={`flex items-start gap-3 border-l-2 ${periodo.monitorizacao?.rupePath ? 'border-green-500' : 'border-gray-300'} pl-3`}>
+                              {periodo.monitorizacao?.rupePath ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <div className="h-5 w-5 rounded-full border-2 border-gray-300 flex-shrink-0 mt-0.5" />
+                              )}
+                              <div>
+                                <p className={`font-medium ${periodo.monitorizacao?.rupePath ? 'text-green-700' : 'text-gray-700'}`}>
+                                  RUPE {periodo.monitorizacao?.rupePath ? 'Emitido' : 'Pendente'}
+                                </p>
+                                {periodo.monitorizacao?.rupePath && (
+                                  <div className="mt-1">
+                                    <p className="text-sm text-gray-600">Referência: {periodo.monitorizacao.rupeReferencia}</p>
+                                    <a
+                                      href={`/api/documentos/${periodo.monitorizacao.rupePath}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm text-blue-600 hover:underline flex items-center"
+                                    >
+                                      <FileText className="mr-2 h-4 w-4" />
+                                      Visualizar RUPE
+                                    </a>
+
+                                    {/* Mostra status do pagamento baseado no estado do processo */}
+                                    {periodo.monitorizacao.estadoProcesso === 'AGUARDANDO_CONFIRMACAO_PAGAMENTO' ? (
+                                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                                        <p className="text-sm text-amber-700 flex items-center">
+                                          <RotateCw className="mr-2 h-4 w-4" />
+                                          Pagamento enviado. Aguardando confirmação.
+                                        </p>
+                                      </div>
+                                    ) : periodo.monitorizacao.rupePago ? (
+                                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                                        <p className="text-sm text-green-700 flex items-center">
+                                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                                          Pagamento confirmado
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handlePagarRupe(periodo.monitorizacao?.id || 0)}
+                                          className="mt-2"
+                                        >
+                                          Confirmar Pagamento
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Etapa 4: Visita Técnica */}
+                            <div className={`flex items-start gap-3 border-l-2 ${periodo.visita || (periodo.monitorizacao?.dataPrevistaVisita || periodo.monitorizacao?.dataVisita) ? 'border-green-500' : 'border-gray-300'} pl-3`}>
+                              {periodo.visita || (periodo.monitorizacao?.dataPrevistaVisita || periodo.monitorizacao?.dataVisita) ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <div className="h-5 w-5 rounded-full border-2 border-gray-300 flex-shrink-0 mt-0.5" />
+                              )}
+                              <div>
+                                <p className={`font-medium ${periodo.visita || (periodo.monitorizacao?.dataPrevistaVisita || periodo.monitorizacao?.dataVisita) ? 'text-green-700' : 'text-gray-700'}`}>
+                                  Visita Técnica
+                                </p>
+                                
+                                {/* Mostrar informações da visita - com prioridade para dados da monitorizacao */}
+                                <div className="mt-1">
+                                  {/* Mostrar data da visita (prevista ou realizada) */}
+                                  {periodo.monitorizacao?.dataVisita && (
+                                    <p className="text-sm text-gray-600 font-medium">
+                                      Visita realizada em {formatarData(periodo.monitorizacao.dataVisita)}
+                                    </p>
+                                  )}
+                                  {!periodo.monitorizacao?.dataVisita && periodo.monitorizacao?.dataPrevistaVisita && (
+                                    <p className="text-sm text-gray-600 font-medium">
+                                      Visita prevista para {formatarData(periodo.monitorizacao.dataPrevistaVisita)}
+                                    </p>
+                                  )}
+                                  {!periodo.monitorizacao?.dataVisita && !periodo.monitorizacao?.dataPrevistaVisita && periodo.visita && (
+                                    <p className="text-sm text-gray-600 font-medium">
+                                      {periodo.visita.dataRealizada ?
+                                        `Visita realizada em ${formatarData(periodo.visita.dataRealizada)}` :
+                                        `Visita prevista para ${formatarData(periodo.visita.dataPrevista)}`}
+                                    </p>
+                                  )}
+                                  
+                                  {/* Sempre mostrar os técnicos designados se existirem */}
+                                  {periodo.monitorizacao?.tecnicosSelecionados && periodo.monitorizacao.tecnicosSelecionados.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="text-sm font-medium text-gray-700">Técnicos designados:</p>
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {periodo.monitorizacao.tecnicosSelecionados.map(tecnico => (
+                                          <span key={tecnico.id} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                            {tecnico.nome}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Mensagem de status da visita */}
+                                  {periodo.monitorizacao?.estadoProcesso === 'AGUARDANDO_VISITA' && !periodo.monitorizacao?.dataVisita && (
+                                    <p className="text-xs text-amber-600 mt-2">Aguardando realização da visita.</p>
+                                  )}
+                                  {periodo.monitorizacao?.estadoProcesso === 'AGUARDANDO_DOCUMENTO_FINAL' && periodo.monitorizacao?.dataVisita && (
+                                    <p className="text-xs text-green-600 mt-2">Visita realizada com sucesso.</p>
+                                  )}
+                                  {periodo.monitorizacao?.estadoProcesso === 'CONCLUIDO' && periodo.monitorizacao?.dataVisita && (
+                                    <p className="text-xs text-green-600 mt-2">Visita concluída.</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Etapa 5: Documento Final */}
+                            <div className={`flex items-start gap-3 border-l-2 ${periodo.monitorizacao?.documentoFinalPath ? 'border-green-500' : 'border-gray-300'} pl-3`}>
+                              {periodo.monitorizacao?.documentoFinalPath ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <div className="h-5 w-5 rounded-full border-2 border-gray-300 flex-shrink-0 mt-0.5" />
+                              )}
+                              <div>
+                                <p className={`font-medium ${periodo.monitorizacao?.documentoFinalPath ? 'text-green-700' : 'text-gray-700'}`}>
+                                  Documento Final
+                                </p>
+                                {periodo.monitorizacao?.estadoProcesso === 'AGUARDANDO_DOCUMENTO_FINAL' && (
+                                  <p className="text-sm text-gray-500">Aguardando emissão do documento final</p>
+                                )}
+                                {periodo.monitorizacao?.documentoFinalPath && (
+                                  <div className="mt-1">
+                                    <a
+                                      href={periodo.monitorizacao.documentoFinalPath}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm text-blue-600 hover:underline flex items-center"
+                                    >
+                                      <FileText className="mr-2 h-4 w-4" />
+                                      Baixar documento final
+                                    </a>
+                                    <p className="text-sm mt-1">
+                                      Estado: <span className={`font-medium ${periodo.monitorizacao?.estado === 'APROVADO' || periodo.monitorizacao?.estado === 'FINALIZADO' ? 'text-green-600' : periodo.monitorizacao?.estado === 'REJEITADO' ? 'text-red-600' : 'text-amber-600'}`}>
+                                        {periodo.monitorizacao?.estado === 'APROVADO' && 'Aprovado'}
+                                        {periodo.monitorizacao?.estado === 'REJEITADO' && 'Rejeitado'}
+                                        {periodo.monitorizacao?.estado === 'CARECE_MELHORIAS' && 'Carece de Melhorias'}
+                                        {periodo.monitorizacao?.estado === 'FINALIZADO' && 'Finalizado'}
+                                      </span>
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {periodo.estado === 'FECHADO' && !periodo.monitorizacao && (
-                        <div className="flex justify-between items-center">
-                          <p className="text-sm text-muted-foreground">
-                            O período está fechado. Entre em contato com o administrador para mais informações.
-                          </p>
-                          <Button
-                            variant="outline"
-                            onClick={() => handleReabertura(periodo.id)}
-                            disabled={periodo.estado === 'REABERTURA_SOLICITADA'}
-                          >
-                            {periodo.estado === 'REABERTURA_SOLICITADA' ? (
-                              'Solicitação de Reabertura Enviada'
-                            ) : (
-                              'Solicitar Reabertura'
-                            )}
-                          </Button>
-                        </div>
-                      )}
-
-                      {periodo.monitorizacao?.estado === 'REJEITADO' && (
-                        <div className="mt-4">
-                          <Alert variant="destructive">
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertDescription>
-                              Seu relatório foi rejeitado. Por favor, faça as correções necessárias e envie novamente.
-                            </AlertDescription>
-                          </Alert>
+                        {/* Estado de rejeição */}
+                        {periodo.monitorizacao?.estado === 'REJEITADO' && (
                           <div className="mt-4">
-                            <Button
-                              variant="outline"
-                              onClick={() => handleSolicitarReavaliacao(periodo.id)}
-                              className="mt-2"
-                            >
-                              Solicitar Reavaliação
-                            </Button>
+                            <Alert variant="destructive">
+                              <AlertTriangle className="h-4 w-4" />
+                              <AlertDescription>
+                                Seu relatório foi rejeitado. Por favor, faça as correções necessárias e envie novamente.
+                              </AlertDescription>
+                            </Alert>
+                            <div className="mt-4">
+                              <Button
+                                variant="outline"
+                                onClick={() => handleSolicitarReavaliacao(periodo.id)}
+                                className="mt-2"
+                              >
+                                Solicitar Reavaliação
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      )}
-
-                      {periodo.monitorizacao?.relatorioPath && (
-                        <div className="mt-4">
-                          <a
-                            href={periodo.monitorizacao.relatorioPath}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-blue-600 hover:underline flex items-center"
-                          >
-                            <FileText className="mr-2 h-4 w-4" />
-                            Visualizar relatório enviado
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+          <ToastContainer />
+        </div>
       </div>
-      <ToastContainer />
     </div>
+    <ReaberturaModals 
+      isReaberturaModalOpen={isReaberturaModalOpen}
+      setIsReaberturaModalOpen={setIsReaberturaModalOpen}
+      motivoReabertura={motivoReabertura}
+      setMotivoReabertura={setMotivoReabertura}
+      handleReabertura={handleReabertura}
+      processandoReabertura={processandoReabertura}
+      isRupeModalOpen={isRupeModalOpen}
+      setIsRupeModalOpen={setIsRupeModalOpen}
+      isRupeConfirmationModalOpen={isRupeConfirmationModalOpen}
+      setIsRupeConfirmationModalOpen={setIsRupeConfirmationModalOpen}
+      handleConfirmarPagamentoRupe={handleConfirmarPagamentoRupe}
+    />
+    </>
   );
 }
