@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export async function POST(
   request: Request,
@@ -17,9 +18,16 @@ export async function POST(
     const body = await request.json();
     const { observacoes } = body;
 
-    // Verificar se a solicitação existe
+    // Verificar se a solicitação existe e obter a data de criação
     const solicitacao = await prisma.solicitacaoautorizacao.findUnique({
       where: { id },
+      select: {
+        id: true,
+        createdAt: true,
+        validadoPorTecnico: true,
+        validadoPorChefe: true,
+        status: true
+      },
     });
 
     if (!solicitacao) {
@@ -29,7 +37,52 @@ export async function POST(
       );
     }
 
-    // Não é mais necessário verificar se já foi validada pelo técnico
+    // Verificar se já foi validada pelo técnico
+    if (!solicitacao.validadoPorTecnico) {
+      return NextResponse.json(
+        { error: 'Esta solicitação precisa ser validada pelo técnico primeiro' },
+        { status: 400 }
+      );
+    }
+
+    // Verificar se já foi validada pelo chefe
+    if (solicitacao.validadoPorChefe) {
+      return NextResponse.json(
+        { error: 'Esta solicitação já foi validada pelo chefe' },
+        { status: 400 }
+      );
+    }
+
+    // Verificar se existem processos mais antigos validados pelo técnico mas não pelo chefe
+    const processosPendentes = await prisma.solicitacaoautorizacao.findMany({
+      where: {
+        validadoPorTecnico: true,
+        validadoPorChefe: false,
+        status: 'Pendente',
+        createdAt: { lt: new Date(solicitacao.createdAt) }
+      },
+      orderBy: {
+        createdAt: 'asc'
+      },
+      take: 1,
+      select: {
+        id: true,
+        createdAt: true
+      }
+    });
+
+    // Se existirem processos mais antigos não validados pelo chefe, retornar erro
+    if (processosPendentes.length > 0) {
+      const processoAntigo = processosPendentes[0];
+      return NextResponse.json(
+        { 
+          error: 'Valide os processos mais antigos primeiro',
+          processoAntigoId: processoAntigo.id,
+          processoAntigoData: processoAntigo.createdAt
+        },
+        { status: 400 }
+      );
+    }
 
     // Buscar o nome do chefe logado do body
     const { nome } = body;

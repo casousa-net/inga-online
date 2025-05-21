@@ -225,7 +225,6 @@ export default function ProcessoPage() {
   const validarProcesso = async () => {
     try {
       setValidando(true);
-      console.log('Iniciando validação do processo:', solicitacao.id);
       
       // Buscar o nome do chefe do localStorage
       const nome = localStorage.getItem('userName');
@@ -238,22 +237,50 @@ export default function ProcessoPage() {
         body: JSON.stringify({ observacoes, nome })
       });
       
-      console.log('Status da resposta:', response.status);
+      const responseData = await response.json();
       
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Detalhes do erro:', errorData);
-        throw new Error(errorData.error || 'Erro ao validar processo');
+        // Se houver um processo mais antigo pendente, mostre uma mensagem específica
+        if (response.status === 400 && responseData.error === 'Valide os processos mais antigos primeiro') {
+          const processoAntigoId = responseData.processoAntigoId;
+          const processoAntigoData = responseData.processoAntigoData;
+          const dataFormatada = new Date(processoAntigoData).toLocaleString('pt-BR');
+          
+          toast.error(
+            <div className="space-y-2">
+              <p>Valide os processos mais antigos primeiro.</p>
+              <p className="text-sm">Processo mais antigo: PA-{processoAntigoId} (criado em {dataFormatada})</p>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="mt-2 text-sm"
+                onClick={() => router.push(`/chefe/processo/${processoAntigoId}`)}
+              >
+                Ir para o processo
+              </Button>
+            </div>,
+            { duration: 10000 }
+          );
+          return;
+        }
+        
+        // Outros erros
+        throw new Error(responseData.error || 'Erro ao validar processo');
       }
       
       // Atualizar a solicitação
-      const updatedSolicitacao = await response.json();
-      console.log('Solicitação atualizada:', updatedSolicitacao);
-      setSolicitacao(updatedSolicitacao);
+      setSolicitacao(responseData);
       
       // Fechar o diálogo e mostrar mensagem de sucesso
       setShowValidarDialog(false);
-      toast.success('Processo validado com sucesso!');
+      
+      toast.success('Processo validado com sucesso!', {
+        action: {
+          label: 'Ver processos',
+          onClick: () => router.push('/chefe/processos/autorizacao')
+        },
+        duration: 5000
+      });
       
       // Redirecionar para a lista de processos após um breve delay
       setTimeout(() => {
@@ -262,7 +289,14 @@ export default function ProcessoPage() {
       
     } catch (error) {
       console.error('Erro ao validar processo:', error);
-      toast.error(error instanceof Error ? error.message : 'Erro ao validar o processo. Tente novamente.');
+      
+      // Verificar se é um erro de validação FIFO
+      if (error instanceof Error && error.message.includes('Valide os processos mais antigos primeiro')) {
+        toast.error(error.message, { duration: 10000 });
+      } else {
+        // Outros erros
+        toast.error(error instanceof Error ? error.message : 'Erro ao validar o processo. Tente novamente.');
+      }
     } finally {
       setValidando(false);
     }

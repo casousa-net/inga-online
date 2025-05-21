@@ -39,6 +39,29 @@ type Autorizacao = {
   }[];
 };
 
+// Função para calcular a taxa baseada no valor
+function calcularTaxa(valor: number): number {
+  if (valor <= 6226000) return 0.006;
+  if (valor <= 25000000) return 0.004;
+  if (valor <= 62480000) return 0.003;
+  if (valor <= 249040000) return 0.002;
+  return 0.0018;
+}
+
+// Função para calcular o valor final com a taxa e aplicar o mínimo
+function calcularValorFinal(valor: number): number {
+  // Calcular a taxa sobre o valor em Kwanzas
+  const taxa = calcularTaxa(valor);
+  let totalCobrar = valor * taxa;
+  
+  // Aplicar valor mínimo se necessário
+  if (totalCobrar < 2000) {
+    totalCobrar = 2000;
+  }
+  
+  return totalCobrar;
+}
+
 export default function AutorizacaoDetalhesPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const [autorizacao, setAutorizacao] = useState<Autorizacao | null>(null);
@@ -237,9 +260,19 @@ export default function AutorizacaoDetalhesPage({ params }: { params: Promise<{ 
                 <span className="text-sm text-gray-600">Total em Kwanzas:</span>
                 <div className="mt-1">
                   <Badge className="px-3 py-1.5 text-base font-medium bg-amber-100 text-amber-800 border-amber-200">
-                    {autorizacao.valorTotalKz ? autorizacao.valorTotalKz.toLocaleString('pt-AO', { minimumFractionDigits: 2 }) + ' Kz' : 'Não calculado'}
+                    {autorizacao.valorTotalKz ? calcularValorFinal(autorizacao.valorTotalKz).toLocaleString('pt-AO', { minimumFractionDigits: 2 }) + ' Kz' : 'Não calculado'}
                   </Badge>
                 </div>
+                {autorizacao.valorTotalKz && autorizacao.valorTotalKz > 0 && (
+                  <div className="mt-1 text-xs text-gray-500">
+                    Valor original: {autorizacao.valorTotalKz.toLocaleString('pt-AO', { minimumFractionDigits: 2 })} Kz 
+                    <span className="mx-1">•</span> 
+                    Taxa aplicada: {(calcularTaxa(autorizacao.valorTotalKz) * 100).toFixed(2)}%
+                    {calcularValorFinal(autorizacao.valorTotalKz) === 2000 && (
+                      <span className="ml-1 text-amber-600">(valor mínimo aplicado)</span>
+                    )}
+                  </div>
+                )}
               </div>
               
               <div className="flex flex-wrap gap-2 mt-4">

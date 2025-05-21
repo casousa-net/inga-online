@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { writeFile } from 'fs/promises';
 import path from 'path';
@@ -22,14 +22,14 @@ export async function POST(
     const { observacoes } = body;
 
     // Verificar se a solicitação existe
-    const solicitacao = await prisma.solicitacaoAutorizacao.findUnique({
+    const solicitacao = await prisma.solicitacaoautorizacao.findUnique({
       where: { id },
       include: {
         utente: true,
         moeda: true,
-        itens: {
+        solicitacaoitem: {
           include: {
-            codigoPautal: true
+            codigopautal: true
           }
         }
       }
@@ -227,10 +227,10 @@ export async function POST(
     });
     
     // Itens
-    for (const item of solicitacao.itens) {
+    for (const item of solicitacao.solicitacaoitem) {
       y -= lineHeight;
       
-      page.drawText(item.descricao, {
+      page.drawText(item.descricao || 'Sem descrição', {
         x: 50,
         y,
         size: fontSize,
@@ -238,7 +238,7 @@ export async function POST(
         color: rgb(0, 0, 0),
       });
       
-      page.drawText(item.codigoPautal.codigo, {
+      page.drawText(item.codigopautal?.codigo || 'N/A', {
         x: 250,
         y,
         size: fontSize,
@@ -246,7 +246,7 @@ export async function POST(
         color: rgb(0, 0, 0),
       });
       
-      page.drawText(`${item.quantidade} ${item.unidade}`, {
+      page.drawText(item.quantidade.toString(), {
         x: 350,
         y,
         size: fontSize,
@@ -308,12 +308,12 @@ export async function POST(
     await writeFile(filePath, pdfBytes);
     
     // Atualizar a solicitação
-    const updatedSolicitacao = await prisma.solicitacaoAutorizacao.update({
+    const updatedSolicitacao = await prisma.solicitacaoautorizacao.update({
       where: { id },
       data: {
         aprovadoPorDirecao: true,
         status: 'Aprovado',
-        observacoesDirecao: observacoes || null,
+        observacoes: observacoes || null,
         dataAprovacao: new Date(),
         licencaDocumento: fileName,
       },

@@ -24,9 +24,9 @@ const AutorizacaoAmbientalDownload = forwardRef<HTMLButtonElement, AutorizacaoAm
   useEffect(() => {
     const generateQRCode = async () => {
       try {
-        if (typeof window !== 'undefined' && data.numeroProcesso) {
+        if (typeof window !== 'undefined' && data.numeroAutorizacao) {
           const baseUrl = window.location.origin;
-          const verificationUrl = `${baseUrl}/verificar/${data.numeroProcesso}`;
+          const verificationUrl = `${baseUrl}/verificar/${data.numeroAutorizacao}`;
           
           // Usar opções mais simples para o QR Code para evitar problemas
           const qrCodeDataUrl = await QRCode.toDataURL(verificationUrl, {

@@ -9,6 +9,29 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
+// Função para calcular a taxa baseada no valor
+function calcularTaxa(valor: number): number {
+  if (valor <= 6226000) return 0.006;
+  if (valor <= 25000000) return 0.004;
+  if (valor <= 62480000) return 0.003;
+  if (valor <= 249040000) return 0.002;
+  return 0.0018;
+}
+
+// Função para calcular o valor final com a taxa e aplicar o mínimo
+function calcularValorFinal(valor: number): number {
+  // Calcular a taxa sobre o valor em Kwanzas
+  const taxa = calcularTaxa(valor);
+  let totalCobrar = valor * taxa;
+  
+  // Aplicar valor mínimo se necessário
+  if (totalCobrar < 2000) {
+    totalCobrar = 2000;
+  }
+  
+  return totalCobrar;
+}
+
 // Interface para os pagamentos
 interface Pagamento {
   id: number;
@@ -231,7 +254,21 @@ export default function Pagamentos() {
                 <TableCell>{pagamento.id}</TableCell>
                 <TableCell className="max-w-xs truncate">{pagamento.descricao}</TableCell>
                 <TableCell>{pagamento.referencia}</TableCell>
-                <TableCell>{pagamento.valor.toLocaleString('pt-PT', { style: 'currency', currency: 'AOA' })}</TableCell>
+                <TableCell>
+                  {pagamento.tipo === 'SOLICITACAO' ? (
+                    <div className="flex flex-col">
+                      <span>{calcularValorFinal(pagamento.valor).toLocaleString('pt-AO', { minimumFractionDigits: 2 })} Kz</span>
+                      <span className="text-xs text-gray-500">
+                        Taxa: {(calcularTaxa(pagamento.valor) * 100).toFixed(2)}%
+                        {calcularValorFinal(pagamento.valor) === 2000 && (
+                          <span className="ml-1 text-amber-600">(mín.)</span>
+                        )}
+                      </span>
+                    </div>
+                  ) : (
+                    <span>{pagamento.valor.toLocaleString('pt-PT', { minimumFractionDigits: 2 })} Kz</span>
+                  )}
+                </TableCell>
                 <TableCell>
                   <Badge 
                     variant={pagamento.status === 'PAGA' ? 'default' : 'secondary'} 

@@ -160,10 +160,17 @@ export default function TecnicoMonitorizacao() {
       if (!response.ok) {
         throw new Error("Erro ao buscar processos");
       }
-      
       const data = await response.json();
-      setProcessos(data);
-      setFilteredProcessos(data);
+      console.log('Dados recebidos da API:', data);
+        
+      // Verificar se a resposta está no novo formato (com solicitacoes e diagnostico)
+      // Determinar os dados corretos com base no formato da resposta
+      const processosData = data.solicitacoes || data;
+      console.log('Quantidade de processos:', processosData.length);
+      
+      // Definir os processos e os processos filtrados
+      setProcessos(processosData);
+      setFilteredProcessos(processosData);
     } catch (error) {
       console.error("Erro ao buscar processos:", error);
       toast({

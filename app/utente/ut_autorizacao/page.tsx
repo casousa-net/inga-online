@@ -28,8 +28,8 @@ export default function AutorizacaoPage() {
   const [autorizacoes, setAutorizacoes] = useState<Autorizacao[]>([]);
   const [loadingAutorizacoes, setLoadingAutorizacoes] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [moedas, setMoedas] = useState<{id: number, nome: string, simbolo: string, taxaCambio: number}[]>([]);
-  const [codigosPautais, setCodigosPautais] = useState<{id: number, codigo: string, descricao: string}[]>([]);
+  const [moedas, setMoedas] = useState<{ id: number, nome: string, simbolo: string, taxaCambio: number }[]>([]);
+  const [codigosPautais, setCodigosPautais] = useState<{ id: number, codigo: string, descricao: string }[]>([]);
   const [loadingMoedas, setLoadingMoedas] = useState(true);
   const [loadingCodigos, setLoadingCodigos] = useState(true);
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function AutorizacaoPage() {
     rupe: '',
     search: '',
   });
-  
+
   // Define the initial form state to use for resetting
   const initialFormState = {
     tipo: '',
@@ -58,7 +58,7 @@ export default function AutorizacaoPage() {
       fotos: [] as File[],
     },
   };
-  
+
   const [form, setForm] = useState(initialFormState);
 
   // Validação do código pautal
@@ -100,14 +100,14 @@ export default function AutorizacaoPage() {
     const usuarioId = localStorage.getItem('utenteId');
     if (!usuarioId) return;
     setLoadingAutorizacoes(true);
-    
+
     const useMockData = () => {
       console.log('Usando dados de exemplo para autorizações');
       toast.warning('Usando dados de exemplo para desenvolvimento.');
       setAutorizacoes(mockAutorizacoes);
       setLoadingAutorizacoes(false);
     };
-    
+
     // Verificar se o endpoint está disponível
     fetch(`/api/solicitacao?utenteId=${usuarioId}`)
       .then(res => {
@@ -124,14 +124,14 @@ export default function AutorizacaoPage() {
       })
       .then(text => {
         if (text === null) return; // Já tratado acima
-        
+
         // Check if response is empty
         if (!text) {
           console.log('Resposta vazia da API');
           useMockData();
           return;
         }
-        
+
         try {
           const data = JSON.parse(text);
           setAutorizacoes(data);
@@ -146,7 +146,7 @@ export default function AutorizacaoPage() {
       })
       .finally(() => setLoadingAutorizacoes(false));
   }, []);
-  
+
   // Dados de exemplo para moedas
   const mockMoedas = [
     { id: 1, nome: 'Kwanza', simbolo: 'AKZ', taxaCambio: 1 },
@@ -157,14 +157,14 @@ export default function AutorizacaoPage() {
   // Carregar moedas
   useEffect(() => {
     setLoadingMoedas(true);
-    
+
     const useMockData = () => {
       console.log('Usando dados de exemplo para moedas');
       toast.warning('Usando dados de exemplo para moedas.');
       setMoedas(mockMoedas);
       setLoadingMoedas(false);
     };
-    
+
     fetch('/api/moedas')
       .then(res => {
         if (!res.ok) {
@@ -180,14 +180,14 @@ export default function AutorizacaoPage() {
       })
       .then(text => {
         if (text === null) return; // Já tratado acima
-        
+
         // Check if response is empty
         if (!text) {
           console.log('Resposta vazia da API de moedas');
           useMockData();
           return;
         }
-        
+
         try {
           const data = JSON.parse(text);
           console.log('Moedas carregadas:', data);
@@ -203,7 +203,7 @@ export default function AutorizacaoPage() {
       })
       .finally(() => setLoadingMoedas(false));
   }, []);
-  
+
   // Dados de exemplo para códigos pautais
   const mockCodigosPautais = [
     { id: 1, codigo: '12345678', descricao: 'Equipamentos Eletrônicos', taxa: 0.05 },
@@ -216,14 +216,14 @@ export default function AutorizacaoPage() {
   // Carregar códigos pautais
   useEffect(() => {
     setLoadingCodigos(true);
-    
+
     const useMockData = () => {
       console.log('Usando dados de exemplo para códigos pautais');
       toast.warning('Usando dados de exemplo para códigos pautais.');
       setCodigosPautais(mockCodigosPautais);
       setLoadingCodigos(false);
     };
-    
+
     fetch('/api/codigos-pautais')
       .then(res => {
         if (!res.ok) {
@@ -239,14 +239,14 @@ export default function AutorizacaoPage() {
       })
       .then(text => {
         if (text === null) return; // Já tratado acima
-        
+
         // Check if response is empty
         if (!text) {
           console.log('Resposta vazia da API de códigos pautais');
           useMockData();
           return;
         }
-        
+
         try {
           const data = JSON.parse(text);
           console.log('Códigos pautais carregados:', data);
@@ -277,7 +277,7 @@ export default function AutorizacaoPage() {
 
   function formatarValor(valor: number, moeda: string) {
     if (!moeda) return valor.toLocaleString("pt-AO");
-    
+
     const formatConfig: { [key: string]: { locale: string, currency: string } } = {
       AKZ: { locale: "pt-AO", currency: "AOA" },
       USD: { locale: "en-US", currency: "USD" },
@@ -287,8 +287,8 @@ export default function AutorizacaoPage() {
     const config = formatConfig[moeda];
     if (!config) return valor.toLocaleString();
 
-    return valor.toLocaleString(config.locale, { 
-      style: "currency", 
+    return valor.toLocaleString(config.locale, {
+      style: "currency",
       currency: config.currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
@@ -313,11 +313,11 @@ export default function AutorizacaoPage() {
 
     // Converter para Kwanzas usando a taxa de câmbio
     const totalKz = totalOriginal * moedaSelecionada.taxaCambio;
-    
+
     // Calcular a taxa sobre o valor em Kwanzas
     const taxa = calcularTaxa(totalKz);
     let totalCobrar = totalKz * taxa;
-    
+
     // Aplicar valor mínimo se necessário
     let minAplicado = false;
     if (totalCobrar < 2000) {
@@ -432,8 +432,8 @@ export default function AutorizacaoPage() {
               disabled={loadingCodigos}
             >
               <SelectTrigger className="w-full md:w-80">
-                <SelectValue 
-                  placeholder={loadingCodigos ? "Carregando..." : "Selecione o código"} 
+                <SelectValue
+                  placeholder={loadingCodigos ? "Carregando..." : "Selecione o código"}
                 />
               </SelectTrigger>
               <SelectContent>
@@ -491,8 +491,8 @@ export default function AutorizacaoPage() {
 
       <div className="mb-4">
         <label className="block text-sm font-medium mb-1">Moeda</label>
-        <Select 
-          value={form.moeda?.toString() || ''} 
+        <Select
+          value={form.moeda?.toString() || ''}
           onValueChange={(value) => setForm({ ...form, moeda: value })}
           disabled={loadingMoedas}
         >
@@ -523,11 +523,11 @@ export default function AutorizacaoPage() {
       {form.moeda && (
         <div className="mb-4 p-4 bg-lime-50 border border-lime-200 rounded-xl">
           <label className="block text-sm font-bold mb-1 text-lime-800">Total a Pagar pela Autorização</label>
-          <TotalAutorizacao 
-            codigos={form.codigos} 
-            quantidades={form.quantidades.map(Number)} 
-            precos={form.precos.map(Number)} 
-            moeda={form.moeda || '0'} 
+          <TotalAutorizacao
+            codigos={form.codigos}
+            quantidades={form.quantidades.map(Number)}
+            precos={form.precos.map(Number)}
+            moeda={form.moeda || '0'}
           />
         </div>
       )}
@@ -543,10 +543,10 @@ export default function AutorizacaoPage() {
   );
 
   // Modal Step 3
-  const [docErrors, setDocErrors] = React.useState<{[k: string]: string}>({});
-  
+  const [docErrors, setDocErrors] = React.useState<{ [k: string]: string }>({});
+
   const validateDocs = () => {
-    const errors: {[k: string]: string} = {};
+    const errors: { [k: string]: string } = {};
     if (!form.documentos.carta) errors.carta = 'Obrigatório';
     if (!form.documentos.factura) errors.factura = 'Obrigatório';
     else if (form.documentos.factura && form.documentos.factura.type !== 'application/pdf') errors.factura = 'Apenas PDF permitido';
@@ -556,14 +556,14 @@ export default function AutorizacaoPage() {
     setDocErrors(errors);
     return Object.keys(errors).length === 0;
   };
-  
+
   const handleDocChange = (key: string, file: File | undefined) => {
     setForm(f => ({
       ...f,
       documentos: { ...f.documentos, [key]: file }
     }));
   };
-  
+
   const handleFotosChange = (files: FileList | null) => {
     setForm(f => ({
       ...f,
@@ -598,7 +598,7 @@ export default function AutorizacaoPage() {
       formData.append('moeda', form.moeda.toString());
       formData.append('utenteId', utenteId);
       formData.append('numeroFactura', form.numeroFactura);
-      
+
       // Adicionar itens (códigos, quantidades e preços)
       formData.append('itens', JSON.stringify(form.codigos.map((c, i) => ({
         codigoPautalId: c.id,
@@ -646,11 +646,11 @@ export default function AutorizacaoPage() {
       setLoading(false);
     }
   };
-  
+
   const Step3 = (
     <div className="max-w-2xl mx-auto">
       <p className="text-gray-600 mb-4">Carregue os documentos necessários para a solicitação de autorização.</p>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {/* Carta de Solicitação */}
         <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100 hover:border-lime-200 transition-all duration-200 hover:shadow-lg">
@@ -658,12 +658,12 @@ export default function AutorizacaoPage() {
             <h3 className="font-medium text-gray-800">Carta de Solicitação</h3>
             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Obrigatório</Badge>
           </div>
-          
+
           <div className="relative">
-            <Input 
-              type="file" 
-              accept="application/pdf,image/*" 
-              onChange={e => handleDocChange('carta', e.target.files?.[0])} 
+            <Input
+              type="file"
+              accept="application/pdf,image/*"
+              onChange={e => handleDocChange('carta', e.target.files?.[0])}
               className={`border-2 ${form.documentos.carta ? 'border-lime-300 bg-lime-50' : docErrors.carta ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
             />
             {form.documentos.carta && (
@@ -672,23 +672,23 @@ export default function AutorizacaoPage() {
               </div>
             )}
           </div>
-          
+
           {docErrors.carta && <span className="text-xs text-red-500 mt-1 block">{docErrors.carta}</span>}
           <p className="text-xs text-gray-500 mt-2">Formato: PDF ou imagem</p>
         </div>
-        
+
         {/* Factura Recibo */}
         <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100 hover:border-lime-200 transition-all duration-200 hover:shadow-lg">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-medium text-gray-800">Factura Recibo</h3>
             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Obrigatório</Badge>
           </div>
-          
+
           <div className="relative">
-            <Input 
-              type="file" 
-              accept="application/pdf" 
-              onChange={e => handleDocChange('factura', e.target.files?.[0])} 
+            <Input
+              type="file"
+              accept="application/pdf"
+              onChange={e => handleDocChange('factura', e.target.files?.[0])}
               className={`border-2 ${form.documentos.factura ? 'border-lime-300 bg-lime-50' : docErrors.factura ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
             />
             {form.documentos.factura && (
@@ -697,23 +697,23 @@ export default function AutorizacaoPage() {
               </div>
             )}
           </div>
-          
+
           {docErrors.factura && <span className="text-xs text-red-500 mt-1 block">{docErrors.factura}</span>}
           <p className="text-xs text-gray-500 mt-2">Formato: apenas PDF</p>
         </div>
-        
+
         {/* Comprovativo de Pagamento */}
         <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100 hover:border-lime-200 transition-all duration-200 hover:shadow-lg">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-medium text-gray-800">Comprovativo</h3>
             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Obrigatório</Badge>
           </div>
-          
+
           <div className="relative">
-            <Input 
-              type="file" 
-              accept="application/pdf,image/*" 
-              onChange={e => handleDocChange('comprovativo', e.target.files?.[0])} 
+            <Input
+              type="file"
+              accept="application/pdf,image/*"
+              onChange={e => handleDocChange('comprovativo', e.target.files?.[0])}
               className={`border-2 ${form.documentos.comprovativo ? 'border-lime-300 bg-lime-50' : docErrors.comprovativo ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
             />
             {form.documentos.comprovativo && (
@@ -722,23 +722,23 @@ export default function AutorizacaoPage() {
               </div>
             )}
           </div>
-          
+
           {docErrors.comprovativo && <span className="text-xs text-red-500 mt-1 block">{docErrors.comprovativo}</span>}
           <p className="text-xs text-gray-500 mt-2">Formato: PDF ou imagem</p>
         </div>
-        
+
         {/* Especificação Técnica */}
         <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100 hover:border-lime-200 transition-all duration-200 hover:shadow-lg">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-medium text-gray-800">Especificação Técnica</h3>
             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Obrigatório</Badge>
           </div>
-          
+
           <div className="relative">
-            <Input 
-              type="file" 
-              accept="application/pdf,image/*" 
-              onChange={e => handleDocChange('especificacao', e.target.files?.[0])} 
+            <Input
+              type="file"
+              accept="application/pdf,image/*"
+              onChange={e => handleDocChange('especificacao', e.target.files?.[0])}
               className={`border-2 ${form.documentos.especificacao ? 'border-lime-300 bg-lime-50' : docErrors.especificacao ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
             />
             {form.documentos.especificacao && (
@@ -747,25 +747,25 @@ export default function AutorizacaoPage() {
               </div>
             )}
           </div>
-          
+
           {docErrors.especificacao && <span className="text-xs text-red-500 mt-1 block">{docErrors.especificacao}</span>}
           <p className="text-xs text-gray-500 mt-2">Formato: PDF ou imagem</p>
         </div>
       </div>
-      
+
       {/* Fotos do Produto */}
       <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100 hover:border-lime-200 transition-all duration-200 hover:shadow-lg mb-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-medium text-gray-800">Fotos do Produto</h3>
           <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Obrigatório</Badge>
         </div>
-        
+
         <div className="relative">
-          <Input 
-            type="file" 
-            accept="image/*" 
-            multiple 
-            onChange={e => handleFotosChange(e.target.files)} 
+          <Input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={e => handleFotosChange(e.target.files)}
             className={`border-2 ${form.documentos.fotos?.length ? 'border-lime-300 bg-lime-50' : docErrors.fotos ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
           />
           {form.documentos.fotos?.length > 0 && (
@@ -774,10 +774,10 @@ export default function AutorizacaoPage() {
             </div>
           )}
         </div>
-        
+
         {docErrors.fotos && <span className="text-xs text-red-500 mt-1 block">{docErrors.fotos}</span>}
         <p className="text-xs text-gray-500 mt-2">Selecione uma ou mais fotos do produto</p>
-        
+
         {form.documentos.fotos?.length > 0 && (
           <div className="mt-3">
             <p className="text-xs text-green-600 font-medium">{form.documentos.fotos.length} {form.documentos.fotos.length === 1 ? 'foto selecionada' : 'fotos selecionadas'}</p>
@@ -933,7 +933,7 @@ export default function AutorizacaoPage() {
                   {item.status === 'Aprovado' && (
                     <Badge variant="secondary" className="flex items-center gap-1 px-2 cursor-pointer" asChild>
                       <Button size="sm" variant="ghost">
-                        <Download className="text-lime-700" size={16} /> Baixar
+                        <Download className="text-lime-700" size={16} /> Baixar Licença
                       </Button>
                     </Badge>
                   )}

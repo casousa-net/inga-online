@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export async function POST(
   request: Request,
@@ -17,15 +18,59 @@ export async function POST(
     const body = await request.json();
     const { observacoes } = body;
 
-    // Verificar se a solicitação existe
+    // Verificar se a solicitação existe e obter a data de criação
     const solicitacao = await prisma.solicitacaoautorizacao.findUnique({
       where: { id },
+      select: {
+        id: true,
+        createdAt: true,
+        validadoPorTecnico: true,
+        status: true
+      },
     });
 
     if (!solicitacao) {
       return NextResponse.json(
         { error: 'Solicitação não encontrada' },
         { status: 404 }
+      );
+    }
+
+    // Verificar se já foi validada
+    if (solicitacao.validadoPorTecnico) {
+      return NextResponse.json(
+        { error: 'Esta solicitação já foi validada' },
+        { status: 400 }
+      );
+    }
+
+    // Verificar se existem processos mais antigos não validados
+    const processosPendentes = await prisma.solicitacaoautorizacao.findMany({
+      where: {
+        validadoPorTecnico: false,
+        status: 'Pendente',
+        createdAt: { lt: new Date(solicitacao.createdAt) }
+      },
+      orderBy: {
+        createdAt: 'asc'
+      },
+      take: 1,
+      select: {
+        id: true,
+        createdAt: true
+      }
+    });
+
+    // Se existirem processos mais antigos não validados, retornar erro
+    if (processosPendentes.length > 0) {
+      const processoAntigo = processosPendentes[0];
+      return NextResponse.json(
+        { 
+          error: 'Valide os processos mais antigos primeiro',
+          processoAntigoId: processoAntigo.id,
+          processoAntigoData: processoAntigo.createdAt
+        },
+        { status: 400 }
       );
     }
 

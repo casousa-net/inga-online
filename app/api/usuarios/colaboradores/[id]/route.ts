@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
 
 type ColaboradorResponse = {
   id: number;
@@ -19,45 +18,24 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  console.log(`GET request for colaborador ID: ${params.id}`);
   try {
     const id = Number(params.id);
     if (isNaN(id)) {
+      console.error(`Invalid ID: ${params.id}`);
       return NextResponse.json(
         { error: 'ID inválido' },
         { status: 400 }
       );
     }
 
-    // Buscar o colaborador com histórico de processos e níveis
-    // Buscar o colaborador
-    const colaborador = await (prisma.utente.findUnique({
-      where: { id },
-      include: {
-        historicoNiveis: true
-      } as any
-    }) as any);
-
-    // Buscar processos onde o colaborador foi validador
-    const processosValidados = await (prisma.solicitacaoautorizacao.findMany({
-      where: {
-        OR: [
-          { tecnicoValidador: colaborador.nome },
-          { chefeValidador: colaborador.nome },
-          { direcaoValidador: colaborador.nome }
-        ]
-      } as any,
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    }) as any);
+    // Buscar o colaborador com informações básicas
+    const colaborador = await prisma.utente.findUnique({
+      where: { id }
+    });
 
     if (!colaborador) {
+      console.error(`Colaborador não encontrado: ${id}`);
       return NextResponse.json(
         { error: 'Colaborador não encontrado' },
         { status: 404 }
@@ -65,33 +43,67 @@ export async function GET(
     }
 
     // Verificar se é um colaborador (não utente)
-    if (!['tecnico', 'chefe', 'direccao'].includes(colaborador.role)) {
+    if (!['tecnico', 'chefe', 'direccao'].includes(colaborador.role || '')) {
+      console.error(`Usuário não é um colaborador: ${colaborador.role}`);
       return NextResponse.json(
         { error: 'Usuário não é um colaborador' },
         { status: 400 }
       );
     }
 
-    // Formatar os dados do colaborador
-    const colaboradorFormatado = {
+    // Formatar a resposta no formato esperado pelo frontend
+    const response: ColaboradorResponse = {
       id: colaborador.id,
-      nome: colaborador.nome,
-      email: colaborador.email,
-      telefone: colaborador.telefone,
+      nome: colaborador.nome || 'Sem nome',
+      email: colaborador.email || '',
+      telefone: colaborador.telefone || '',
       nivel: colaborador.role === 'tecnico' ? 'Tecnico' : 
              colaborador.role === 'chefe' ? 'Chefe de Departamento' : 'Direção',
       area: colaborador.departamento ? 
             colaborador.departamento === 'autorizacao' ? 'Autorização' :
-            colaborador.departamento === 'monitorizacao' ? 'Monitorizacao' :
+            colaborador.departamento === 'monitorizacao' ? 'Monitorização' :
             colaborador.departamento === 'espacos-verdes' ? 'Espaços Verdes' : 
-            colaborador.departamento : 'Não especificada',
+            'Geral' : 'Geral',
       estado: 'Ativo',
       createdAt: colaborador.createdAt.toISOString(),
-      processos: processosValidados || [],
-      historicoNiveis: colaborador.historicoNiveis || []
+      processos: [],
+      historicoNiveis: []
     };
 
-    return NextResponse.json(colaboradorFormatado);
+    // Tentar buscar processos de autorização
+    try {
+      const processosAutorizacao = await prisma.solicitacaoautorizacao.findMany({
+        where: {
+          OR: [
+            { tecnicoValidador: colaborador.nome },
+            { chefeValidador: colaborador.nome },
+            { direcaoValidador: colaborador.nome }
+          ]
+        },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      response.processos = processosAutorizacao.map(p => ({
+        id: p.id,
+        status: p.status,
+        tipo: 'autorização',
+        createdAt: p.createdAt.toISOString(),
+        updatedAt: p.updatedAt.toISOString()
+      }));
+    } catch (err) {
+      console.error('Erro ao buscar processos de autorização:', err);
+      // Continuar mesmo com erro
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Erro ao buscar colaborador:', error);
     return NextResponse.json(

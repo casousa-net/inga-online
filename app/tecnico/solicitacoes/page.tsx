@@ -66,7 +66,18 @@ export default function SolicitacoesTecnicoPage() {
         }
 
         const data = await response.json();
-        setSolicitacoes(data);
+        console.log('Dados recebidos da API:', data);
+        
+        // Verificar se a resposta está no novo formato (com solicitacoes e diagnostico)
+        if (data.solicitacoes) {
+          setSolicitacoes(data.solicitacoes);
+          
+          // Exibir informações de diagnóstico no console
+          console.log('Diagnóstico de solicitações:', data.diagnostico);
+        } else {
+          // Manter compatibilidade com o formato antigo
+          setSolicitacoes(data);
+        }
       } catch (error) {
         console.error('Erro:', error);
         alert('Erro ao carregar solicitações. Por favor, tente novamente.');

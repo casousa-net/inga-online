@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
   },
   signatureImage: {
     width: 150,
-    height: 145,
+    height: 130,
     position: 'absolute',
     top: -30,
     left: '50%',
@@ -256,12 +256,28 @@ const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({
   qrCodeUrl
 }) => {
   // Gerar URL para verificação
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = 'http://localhost:3000';
   // Usar o PA (número do processo) para a verificação em vez do ID
-  const numeroProcesso = data.numeroProcesso || `PA-${data.id}`;
+  console.log('Dados recebidos no PDF:', data);
+  const numeroProcesso = data.numeroProcesso || `PA-${data.id}` || 'PA-000001';
+  console.log('Número do processo usado:', numeroProcesso);
+  
+  // Garantir que o número de autorização existe
+  if (!data.numeroAutorizacao) {
+    console.error('ERRO: Número de autorização não definido nos dados do PDF:', data);
+  }
+  
+  // Usar o número de autorização com verificação de undefined
+  const numeroAutorizacao = data.numeroAutorizacao || `AUT-${new Date().getFullYear()}-ERROR`;
+  console.log('Número de autorização usado:', numeroAutorizacao);
+  
   // Usar o caminho /verificar/[pa] para corresponder ao diretório [pa]
-  const verificationUrl = `${baseUrl}/verificar/${encodeURIComponent(numeroProcesso)}`;
-  const qrCodeImageUrl = qrCodeUrl || `/api/qrcode/${encodeURIComponent(numeroProcesso)}`;
+  const verificationUrl = `${baseUrl}/verificar/${encodeURIComponent(numeroAutorizacao)}`;
+  console.log('URL de verificação:', verificationUrl);
+  
+  // Garantir que a URL do QR code seja absoluta
+  const qrCodeImageUrl = qrCodeUrl || `${baseUrl}/api/qrcode/${encodeURIComponent(numeroAutorizacao)}`;
+  console.log('URL do QR code:', qrCodeImageUrl);
 
   const dataFormatada = format(data.dataEmissao, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
@@ -375,25 +391,29 @@ const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({
             <Text style={[styles.signatureName, { marginTop: -30 }]}>SIMONE DA SILVA</Text>
           </View>
         </View>
+
         {/* QR Code */}
         <View style={{
           position: 'absolute',
-          bottom: 60,
+          bottom: 25,
           right: 40,
           alignItems: 'center',
-          width: 60
+          width: 80
         }}>
           <Image
             src={qrCodeImageUrl}
-            style={{ width: 60, height: 60 }}
+            style={{ width: 80, height: 80 }}
           />
-          <Text style={{ fontSize: 8, marginTop: 3, textAlign: 'center' }}>
+          <Text style={{ fontSize: 8, marginTop: 1, textAlign: 'center' }}>
             {numeroProcesso}
+          </Text>
+          <Text style={{ fontSize: 5, marginTop: 1, textAlign: 'center', color: '#666666' }}>
+            {verificationUrl}
           </Text>
         </View>
 
         <Text style={styles.digitalSignature}>
-          Documento assinado digitalmente • Verificar em: inga.gov.ao/verificar/{numeroProcesso}
+          Documento assinado digitalmente • Verificar em: inga.gov.ao/verificar/{numeroAutorizacao}
         </Text>
       </Page>
     </Document>

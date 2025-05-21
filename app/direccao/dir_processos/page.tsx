@@ -31,6 +31,29 @@ type Solicitacao = {
   };
 };
 
+// Função para calcular a taxa baseada no valor
+function calcularTaxa(valor: number): number {
+  if (valor <= 6226000) return 0.006;
+  if (valor <= 25000000) return 0.004;
+  if (valor <= 62480000) return 0.003;
+  if (valor <= 249040000) return 0.002;
+  return 0.0018;
+}
+
+// Função para calcular o valor final com a taxa e aplicar o mínimo
+function calcularValorFinal(valor: number): number {
+  // Calcular a taxa sobre o valor em Kwanzas
+  const taxa = calcularTaxa(valor);
+  let totalCobrar = valor * taxa;
+  
+  // Aplicar valor mínimo se necessário
+  if (totalCobrar < 2000) {
+    totalCobrar = 2000;
+  }
+  
+  return totalCobrar;
+}
+
 export default function ProcessosPage() {
   const router = useRouter();
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
@@ -138,7 +161,17 @@ export default function ProcessosPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>{new Date(proc.createdAt).toLocaleString('pt-BR')}</TableCell>
-                  <TableCell>{proc.valorTotalKz.toLocaleString('pt-AO')} KZ</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span>{calcularValorFinal(proc.valorTotalKz).toLocaleString('pt-AO')} KZ</span>
+                      <span className="text-xs text-gray-500">
+                        Taxa: {(calcularTaxa(proc.valorTotalKz) * 100).toFixed(2)}%
+                        {calcularValorFinal(proc.valorTotalKz) === 2000 && (
+                          <span className="ml-1 text-amber-600">(mín.)</span>
+                        )}
+                      </span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {proc.status === 'Pagamento_Confirmado' ? (
                       <Badge className="bg-orange-100 text-orange-800 border-orange-200 flex items-center gap-1">

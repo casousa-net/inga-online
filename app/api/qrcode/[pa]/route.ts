@@ -5,21 +5,23 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { pa: string } }
 ) {
+  console.log('Recebido pedido de QR code para número de autorização:', params.pa);
   try {
-    const pa = params.pa;
+    const numeroAutorizacao = params.pa;
     
-    if (!pa) {
+    if (!numeroAutorizacao) {
       return NextResponse.json(
-        { error: 'Código não fornecido' },
+        { error: 'Número de autorização não fornecido' },
         { status: 400 }
       );
     }
 
-    console.log('Gerando QR code para PA:', pa);
+    console.log('Gerando QR code para número de autorização:', numeroAutorizacao);
 
     // Gerar URL para verificação
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const verificationUrl = `${baseUrl}/verificar/${encodeURIComponent(pa)}`;
+    const baseUrl = 'http://localhost:3000';
+    const verificationUrl = `${baseUrl}/verificar/${encodeURIComponent(numeroAutorizacao)}`;
+    console.log('URL de verificação gerada para QR code:', verificationUrl);
     
     // Gerar QR code como data URL
     const qrCodeDataUrl = await QRCode.toDataURL(verificationUrl, {
