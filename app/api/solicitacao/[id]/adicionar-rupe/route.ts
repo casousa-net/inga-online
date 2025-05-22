@@ -6,8 +6,9 @@ import { mkdir } from "fs/promises";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   try {
     const id = parseInt(params.id);
     const formData = await request.formData();

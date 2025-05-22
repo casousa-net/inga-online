@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 // Endpoint simplificado para verificar apenas o estado do processo
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   try {
     const id = parseInt(params.id);
     
