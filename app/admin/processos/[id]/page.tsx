@@ -6,13 +6,14 @@ export const metadata: Metadata = {
   description: 'Detalhes do processo de licenciamento',
 };
 
-interface ProcessoDetalhesPageProps {
-  params: {
-    id: string;
-  };
+type PageProps = {
+  params: { id: string };
   searchParams?: { [key: string]: string | string[] | undefined };
-}
+};
 
-export default async function ProcessoDetalhesPage({ params }: ProcessoDetalhesPageProps) {
+export default async function ProcessoDetalhesPage({ params }: PageProps) {
   return <ProcessoDetalhesPageClient id={params.id} />;
 }
+
+// Adiciona a tipagem de parâmetros para o Next.js
+export type { PageProps };
