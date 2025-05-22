@@ -5,14 +5,15 @@ const prisma = new PrismaClient();
 
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   try {
-    console.log('Buscando autorização com ID:', context.params.id);
-    const id = parseInt(context.params.id);
+    console.log('Buscando autorização com ID:', params.id);
+    const id = parseInt(params.id);
     
     if (isNaN(id)) {
-      console.log('ID inválido:', context.params.id);
+      console.log('ID inválido:', params.id);
       return NextResponse.json(
         { error: 'ID inválido' },
         { status: 400 }
