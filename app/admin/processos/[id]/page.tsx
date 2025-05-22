@@ -13,7 +13,7 @@ interface PageProps {
   searchParams?: { [key: string]: string | string[] | undefined };
 }
 
-export default async function ProcessoDetalhesPage({ params }: PageProps) {
+export default function ProcessoDetalhesPage({ params }: PageProps) {
   const { id } = params;
   return <ProcessoDetalhesPageClient id={id} />;
 }
