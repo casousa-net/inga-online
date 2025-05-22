@@ -1,4 +1,4 @@
-import { use } from 'react';
+import React, { use } from 'react';
 import { Metadata } from 'next';
 import ProcessoDetalhesPageClient from './page-client';
 
@@ -11,6 +11,7 @@ interface ProcessoDetalhesPageProps {
   params: {
     id: string;
   };
+  searchParams?: { [key: string]: string | string[] | undefined };
 }
 
 export default function ProcessoDetalhesPage({ params }: ProcessoDetalhesPageProps) {

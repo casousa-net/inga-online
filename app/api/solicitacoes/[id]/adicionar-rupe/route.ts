@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { writeFile } from 'fs/promises';
 import path from 'path';
 import { mkdir } from 'fs/promises';
@@ -18,7 +18,7 @@ export async function POST(
     }
 
     // Verificar se a solicitação existe
-    const solicitacao = await prisma.solicitacaoAutorizacao.findUnique({
+    const solicitacao = await prisma.solicitacaoautorizacao.findUnique({
       where: { id },
     });
 
@@ -69,13 +69,15 @@ export async function POST(
     await writeFile(filePath, fileBuffer);
 
     // Atualizar a solicitação
-    const updatedSolicitacao = await prisma.solicitacaoAutorizacao.update({
+    const updatedSolicitacao = await prisma.solicitacaoautorizacao.update({
       where: { id },
       data: {
         rupeReferencia,
-        rupeDocumento: fileName,
+        rupeDocumento: filePath.replace('public', ''),
         status: 'Aguardando_Pagamento',
-        dataRupe: new Date(),
+        rupePago: false,
+        rupeValidado: false,
+        updatedAt: new Date(),
       },
     });
 
