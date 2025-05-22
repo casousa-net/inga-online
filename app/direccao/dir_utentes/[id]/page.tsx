@@ -33,9 +33,16 @@ type Solicitacao = {
   link: string;
 };
 
-export default function UtentePerfilPage({ params }: { params: Promise<{ id: string }> }) {
+interface PageProps {
+  params: {
+    id: string;
+  };
+  searchParams?: { [key: string]: string | string[] | undefined };
+}
+
+export default function UtentePerfilPage({ params }: PageProps) {
   const router = useRouter();
-  const { id } = React.use(params);
+  const { id } = params;
   const [utente, setUtente] = useState<Utente | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

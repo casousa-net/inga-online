@@ -9,9 +9,10 @@ import type { AutorizacaoAmbientalData } from 'components/pdf/AutorizacaoAmbient
 
 interface ClientPageProps {
   id: string;
+  searchParams?: { [key: string]: string | string[] | undefined };
 }
 
-export default function ClientPage({ id }: ClientPageProps) {
+export default function ClientPage({ id, searchParams: initialSearchParams }: ClientPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const download = searchParams?.get('download') === 'true';
@@ -149,7 +150,16 @@ export default function ClientPage({ id }: ClientPageProps) {
         )}
       </div>
       <div className="bg-white rounded-xl shadow-md" style={{ height: "calc(100vh - 200px)" }}>
-        <PDFPreview data={dadosAutorizacao} />
+        {dadosAutorizacao && (
+          <PDFPreview 
+            solicitacaoId={parseInt(id, 10)}
+            tipoSolicitacao={dadosAutorizacao.tipoAutorizacao}
+            entidade={dadosAutorizacao.entidade}
+            nif={dadosAutorizacao.nif}
+            isApproved={true}
+            numeroAutorizacao={dadosAutorizacao.numeroAutorizacao}
+          />
+        )}
       </div>
     </div>
   );

@@ -5,9 +5,10 @@ interface PageProps {
   params: {
     id: string;
   };
+  searchParams?: { [key: string]: string | string[] | undefined };
 }
 
-export default function AutorizacaoPage({ params }: PageProps) {
+export default async function AutorizacaoPage({ params }: PageProps) {
   // Componente do servidor que apenas passa o ID para o componente do cliente
   const { id } = params;
   

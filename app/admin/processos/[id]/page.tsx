@@ -6,8 +6,14 @@ export const metadata: Metadata = {
   description: 'Detalhes do processo de licenciamento',
 };
 
-// Usando uma abordagem mais simples sem tipagem explícita
-export default function ProcessoDetalhesPage(props: any) {
-  const id = props.params?.id;
+interface PageProps {
+  params: {
+    id: string;
+  };
+  searchParams?: { [key: string]: string | string[] | undefined };
+}
+
+export default async function ProcessoDetalhesPage({ params }: PageProps) {
+  const { id } = params;
   return <ProcessoDetalhesPageClient id={id} />;
 }

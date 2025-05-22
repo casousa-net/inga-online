@@ -10,12 +10,17 @@ interface AutorizacaoAmbientalDownloadProps {
   fileName?: string;
   autoDownload?: boolean;
   qrCodeUrl?: string;
+  logoUrl?: string;
+  assinaturaUrl?: string;
 }
 
 const AutorizacaoAmbientalDownload = forwardRef<HTMLButtonElement, AutorizacaoAmbientalDownloadProps>(({ 
   data, 
-  fileName = `autorizacao-ambiental-${data.numeroProcesso}.pdf`,
-  autoDownload = false
+  fileName = `autorizacao-ambiental-${data.numeroProcesso || 'documento'}.pdf`,
+  autoDownload = false,
+  logoUrl = 'http://localhost:3000/assets/pdf/logo-angola.png',
+  assinaturaUrl = 'http://localhost:3000/assets/pdf/assinatura.png',
+  qrCodeUrl: initialQrCodeUrl = ''
 }, ref) => {
   const [isClient, setIsClient] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
