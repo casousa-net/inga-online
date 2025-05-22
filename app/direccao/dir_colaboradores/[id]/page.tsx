@@ -33,14 +33,12 @@ type Colaborador = {
   historicoNiveis: HistoricoNivel[];
 };
 
-interface PageProps {
-  params: {
-    id: string;
-  };
+export default function ColaboradorDetalhesPage({
+  params,
+}: {
+  params: { id: string };
   searchParams?: { [key: string]: string | string[] | undefined };
-}
-
-export default function ColaboradorDetalhesPage({ params }: PageProps) {
+}) {
   const { id } = params;
   const [colaborador, setColaborador] = useState<Colaborador | null>(null);
   const [loading, setLoading] = useState(true);

@@ -62,14 +62,12 @@ function calcularValorFinal(valor: number): number {
   return totalCobrar;
 }
 
-interface PageProps {
-  params: {
-    id: string;
-  };
+export default function AutorizacaoDetalhesPage({
+  params,
+}: {
+  params: { id: string };
   searchParams?: { [key: string]: string | string[] | undefined };
-}
-
-export default function AutorizacaoDetalhesPage({ params }: PageProps) {
+}) {
   const router = useRouter();
   const [autorizacao, setAutorizacao] = useState<Autorizacao | null>(null);
   const [loading, setLoading] = useState(true);

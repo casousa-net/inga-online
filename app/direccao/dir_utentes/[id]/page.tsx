@@ -29,7 +29,7 @@ type Solicitacao = {
   tipo: string;
   subtipo: string;
   data: string;
-  status: string;
+  estado: string;
   link: string;
 };
 
