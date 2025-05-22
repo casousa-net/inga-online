@@ -6,10 +6,8 @@ export const metadata: Metadata = {
   description: 'Detalhes do processo de licenciamento',
 };
 
-export default function ProcessoDetalhesPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  return <ProcessoDetalhesPageClient id={params.id} />;
+// Usando uma abordagem mais simples sem tipagem explícita
+export default function ProcessoDetalhesPage(props: any) {
+  const id = props.params?.id;
+  return <ProcessoDetalhesPageClient id={id} />;
 }
