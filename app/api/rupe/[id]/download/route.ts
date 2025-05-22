@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import path from "path";
 import fs from "fs";
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: any) {
+  const { params } = context;
   try {
     // Extrair o ID do número do processo (PA-000001 -> 1)
     const match = params.id.match(/PA-0*([1-9][0-9]*)/);

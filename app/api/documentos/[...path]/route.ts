@@ -4,8 +4,9 @@ import path from 'path';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  context: any
 ) {
+  const { params } = context;
   try {
     // Obter o caminho do documento a partir dos parâmetros da rota
     const documentPath = params.path.join('/');
