@@ -29,7 +29,7 @@ type Solicitacao = {
   tipo: string;
   subtipo: string;
   data: string;
-  estado: string;
+  status: string;
   link: string;
 };
 
@@ -40,7 +40,12 @@ interface PageProps {
   searchParams?: { [key: string]: string | string[] | undefined };
 }
 
-export default function UtentePerfilPage({ params }: PageProps) {
+export default function UtentePerfilPage({
+  params,
+}: {
+  params: { id: string };
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
   const router = useRouter();
   const { id } = params;
   const [utente, setUtente] = useState<Utente | null>(null);
