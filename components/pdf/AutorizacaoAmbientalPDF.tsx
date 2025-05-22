@@ -255,8 +255,14 @@ const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({
   assinaturaUrl = 'http://localhost:3000/assets/pdf/assinatura.png',
   qrCodeUrl
 }) => {
-  // Gerar URL para verificação
-  const baseUrl = 'http://localhost:3000';
+  // URL base para a aplicação
+  const baseUrl = typeof window !== 'undefined' 
+    ? `${window.location.protocol}//${window.location.host}`
+    : 'http://192.168.0.253:3000';
+    
+  // URL base específica para o QR code usando o IP fixo
+  const qrCodeBaseUrl = 'http://192.168.0.253:3000';
+  
   // Usar o PA (número do processo) para a verificação em vez do ID
   console.log('Dados recebidos no PDF:', data);
   const numeroProcesso = data.numeroProcesso || `PA-${data.id}` || 'PA-000001';
@@ -271,12 +277,12 @@ const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({
   const numeroAutorizacao = data.numeroAutorizacao || `AUT-${new Date().getFullYear()}-ERROR`;
   console.log('Número de autorização usado:', numeroAutorizacao);
   
-  // Usar o caminho /verificar/[pa] para corresponder ao diretório [pa]
+  // URL de verificação (usando a base normal)
   const verificationUrl = `${baseUrl}/verificar/${encodeURIComponent(numeroAutorizacao)}`;
   console.log('URL de verificação:', verificationUrl);
   
-  // Garantir que a URL do QR code seja absoluta
-  const qrCodeImageUrl = qrCodeUrl || `${baseUrl}/api/qrcode/${encodeURIComponent(numeroAutorizacao)}`;
+  // URL do QR code (usando o IP fixo)
+  const qrCodeImageUrl = qrCodeUrl || `${qrCodeBaseUrl}/api/qrcode/${encodeURIComponent(numeroAutorizacao)}`;
   console.log('URL do QR code:', qrCodeImageUrl);
 
   const dataFormatada = format(data.dataEmissao, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });

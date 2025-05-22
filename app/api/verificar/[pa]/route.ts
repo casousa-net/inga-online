@@ -20,10 +20,10 @@ export async function GET(
     }
 
     // Normalizar o formato do número de autorização
-    // Se for no formato antigo (AUT000001), converter para o novo formato (AUT-2025-0001)
+    // Se for no formato antigo (AUT000001), converter para o novo formato (AUT-2025/0001)
     if (/^AUT\d+$/.test(pa)) {
       const numero = pa.replace('AUT', '');
-      pa = `AUT-${new Date().getFullYear()}-${numero.padStart(4, '0')}`;
+      pa = `AUT-${new Date().getFullYear()}/${numero.padStart(4, '0')}`;
       console.log('Convertido formato antigo para novo formato:', pa);
     }
 

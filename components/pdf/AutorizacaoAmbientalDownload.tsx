@@ -24,20 +24,40 @@ const AutorizacaoAmbientalDownload = forwardRef<HTMLButtonElement, AutorizacaoAm
   useEffect(() => {
     const generateQRCode = async () => {
       try {
-        if (typeof window !== 'undefined' && data.numeroAutorizacao) {
-          const baseUrl = window.location.origin;
-          const verificationUrl = `${baseUrl}/verificar/${data.numeroAutorizacao}`;
-          
-          // Usar opções mais simples para o QR Code para evitar problemas
-          const qrCodeDataUrl = await QRCode.toDataURL(verificationUrl, {
-            width: 120,
-            margin: 0,
-            errorCorrectionLevel: 'M'
-          });
-          
-          setQrCodeUrl(qrCodeDataUrl);
-          console.log('QR Code gerado com sucesso no componente');
+        if (typeof window === 'undefined' || !data.numeroAutorizacao) return;
+        
+        // Usar o endereço base da aplicação
+        const baseUrl = window.location.origin;
+        const numeroAutorizacao = data.numeroAutorizacao;
+        
+        console.log('Gerando QR code para:', {
+          baseUrl,
+          numeroAutorizacao,
+          hasQrCodeUrl: !!qrCodeUrl
+        });
+        
+        // Se já tivermos uma URL de QR code fornecida, usá-la
+        if (qrCodeUrl) {
+          console.log('Usando URL de QR code fornecida:', qrCodeUrl);
+          return;
         }
+        
+        // Criar URL de verificação
+        const verificationUrl = `${baseUrl}/verificar/${encodeURIComponent(numeroAutorizacao)}`;
+        console.log('URL de verificação para QR code:', verificationUrl);
+        
+        // Gerar QR code como data URL
+        const qrCodeDataUrl = await QRCode.toDataURL(verificationUrl, {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        });
+        
+        console.log('QR code gerado com sucesso');
+        setQrCodeUrl(qrCodeDataUrl);
       } catch (error) {
         console.error('Erro ao gerar QR Code:', error);
         // Continuar mesmo sem o QR Code
@@ -48,7 +68,7 @@ const AutorizacaoAmbientalDownload = forwardRef<HTMLButtonElement, AutorizacaoAm
     if (isClient) {
       generateQRCode();
     }
-  }, [isClient, data.numeroAutorizacao]);
+  }, [isClient, data.numeroAutorizacao, qrCodeUrl]);
   
   // Usar useEffect para garantir que o componente só seja renderizado no cliente
   useEffect(() => {
