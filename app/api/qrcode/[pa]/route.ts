@@ -3,8 +3,9 @@ import QRCode from 'qrcode';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { pa: string } }
+  context: any
 ) {
+  const { params } = context;
   console.log('Recebido pedido de QR code para número de autorização. Parâmetros recebidos:', params);
   
   try {
