@@ -3,8 +3,9 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { numero: string } }
+  context: any
 ) {
+  const { params } = context;
   try {
     const numero = params.numero;
     console.log('Buscando autorização pelo número:', numero);
