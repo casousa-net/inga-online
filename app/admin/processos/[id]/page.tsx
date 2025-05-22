@@ -1,4 +1,3 @@
-import React, { use } from 'react';
 import { Metadata } from 'next';
 import ProcessoDetalhesPageClient from './page-client';
 
@@ -14,7 +13,6 @@ interface ProcessoDetalhesPageProps {
   searchParams?: { [key: string]: string | string[] | undefined };
 }
 
-export default function ProcessoDetalhesPage({ params }: ProcessoDetalhesPageProps) {
-  const id = use(Promise.resolve(params.id));
-  return <ProcessoDetalhesPageClient id={id} />;
+export default async function ProcessoDetalhesPage({ params }: ProcessoDetalhesPageProps) {
+  return <ProcessoDetalhesPageClient id={params.id} />;
 }
