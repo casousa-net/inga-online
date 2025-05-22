@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   description: 'Detalhes do processo de licenciamento',
 };
 
+// Forçando o Next.js a tratar esta rota como dinâmica
+export const dynamic = 'force-dynamic';
+
+// Componente da página
 export default function ProcessoDetalhesPage({
   params,
 }: {
@@ -13,5 +17,7 @@ export default function ProcessoDetalhesPage({
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
   const { id } = params;
+  
+  // O componente cliente recebe o ID e lida com o carregamento dos dados
   return <ProcessoDetalhesPageClient id={id} />;
 }
