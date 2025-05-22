@@ -6,13 +6,10 @@ export const metadata: Metadata = {
   description: 'Detalhes do processo de licenciamento',
 };
 
-type PageProps = {
-  params: {
-    id: string;
-  };
-  searchParams?: { [key: string]: string | string[] | undefined };
-};
-
-export default function ProcessoDetalhesPage({ params }: PageProps) {
+export default function ProcessoDetalhesPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   return <ProcessoDetalhesPageClient id={params.id} />;
 }
