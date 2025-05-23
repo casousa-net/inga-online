@@ -15,7 +15,3 @@ export default function AutorizacaoPage() {
   
   return <ClientPage id={id} />;
 }
-
-// Garantindo que o Next.js saiba que esta é uma rota dinâmica
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
