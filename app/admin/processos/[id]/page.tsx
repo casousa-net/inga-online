@@ -1,4 +1,7 @@
+'use client';
+
 import { Metadata } from 'next';
+import { useParams } from 'next/navigation';
 import ProcessoDetalhesPageClient from './page-client';
 
 export const metadata: Metadata = {
@@ -9,22 +12,15 @@ export const metadata: Metadata = {
 // Forçando o Next.js a tratar esta rota como dinâmica
 export const dynamic = 'force-dynamic';
 
-// Definindo os tipos para as props da página
-type ProcessoDetalhesPageProps = {
-  params: {
-    id: string;
-  };
-  searchParams?: { [key: string]: string | string[] | undefined };
-};
-
 // Componente da página
-export default async function ProcessoDetalhesPage({
-  params,
-  searchParams,
-}: ProcessoDetalhesPageProps) {
-  const { id } = params;
+export default function ProcessoDetalhesPage() {
+  const params = useParams();
+  const id = params?.id as string;
   
-  // O componente cliente recebe o ID e lida com o carregamento dos dados
+  if (!id) {
+    return <div>ID do processo não encontrado</div>;
+  }
+  
   return <ProcessoDetalhesPageClient id={id} />;
 }
 
