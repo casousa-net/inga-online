@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Loader2, Mail, Phone, Calendar, Building, UserCog, Users, Briefcase, ChevronDown, ArrowLeft, FileText, History } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { Badge } from '../../../../components/ui/badge';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 
 type HistoricoNivel = {
   id: number;
@@ -33,13 +33,9 @@ type Colaborador = {
   historicoNiveis: HistoricoNivel[];
 };
 
-export default function ColaboradorDetalhesPage({
-  params,
-}: {
-  params: { id: string };
-  searchParams?: { [key: string]: string | string[] | undefined };
-}) {
-  const { id } = params;
+export default function ColaboradorDetalhesPage() {
+  const params = useParams();
+  const id = params?.id as string;
   const [colaborador, setColaborador] = useState<Colaborador | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
