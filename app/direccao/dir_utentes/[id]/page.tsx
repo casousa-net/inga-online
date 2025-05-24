@@ -10,11 +10,14 @@ export const metadata: Metadata = {
   description: 'Detalhes do utente para a Direção',
 };
 
+interface PageProps {
+  params: { id: string };
+  searchParams?: { [key: string]: string | string[] | undefined };
+}
+
 export default function UtentePerfilPage({
   params,
-}: {
-  params: { id: string };
-}) {
+}: PageProps) {
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
