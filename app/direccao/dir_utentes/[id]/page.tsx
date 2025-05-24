@@ -34,10 +34,9 @@ type Solicitacao = {
 };
 
 
-interface PageProps {
-  params: {
-    id: string;
-  };
+type PageProps = {
+  params: { id: string };
+  searchParams?: { [key: string]: string | string[] | undefined };
 }
 
 export default function UtentePerfilPage({ params }: PageProps) {
