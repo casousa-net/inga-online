@@ -1,0 +1,27 @@
+import { Metadata } from 'next';
+import { Suspense } from 'react';
+import { Loader2 } from 'lucide-react';
+import { UtentePerfilClient } from './utente-perfil-client';
+
+export const metadata: Metadata = {
+  title: 'Detalhes do Utente | Direção | INGA',
+  description: 'Detalhes do utente para a Direção',
+};
+
+export default function UtentePerfilPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-lime-600" />
+        </div>
+      }
+    >
+      <UtentePerfilClient id={params.id} />
+    </Suspense>
+  );
+}
