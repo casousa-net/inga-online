@@ -33,21 +33,11 @@ type Solicitacao = {
   link: string;
 };
 
-interface PageProps {
-  params: {
-    id: string;
-  };
-  searchParams?: { [key: string]: string | string[] | undefined };
-}
 
-export default function UtentePerfilPage({
-  params,
-}: {
-  params: { id: string };
-  searchParams?: { [key: string]: string | string[] | undefined };
-}) {
+export default function UtentePerfilPage() {
   const router = useRouter();
-  const { id } = params;
+  const params = useParams();
+  const id = params?.id as string;
   const [utente, setUtente] = useState<Utente | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

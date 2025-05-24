@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, ChevronLeft, CheckCircle } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useRouter } from 'next/navigation';
 
 type Autorizacao = {
   id: number;
@@ -62,12 +62,9 @@ function calcularValorFinal(valor: number): number {
   return totalCobrar;
 }
 
-export default function AutorizacaoDetalhesPage({
-  params,
-}: {
-  params: { id: string };
-  searchParams?: { [key: string]: string | string[] | undefined };
-}) {
+export default function AutorizacaoDetalhesPage() {
+  const params = useParams();
+  const id = params?.id as string;
   const router = useRouter();
   const [autorizacao, setAutorizacao] = useState<Autorizacao | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,9 +85,6 @@ export default function AutorizacaoDetalhesPage({
   const [mpesaAmount, setMpesaAmount] = useState(0);
   const [mpesaExpiration, setMpesaExpiration] = useState('');
   const [confirmandoPagamento, setConfirmandoPagamento] = useState(false);
-  
-  // Obter o ID diretamente dos parâmetros
-  const { id } = params;
 
   useEffect(() => {
     // Extrair apenas o número do ID, caso esteja no formato PA-000002
