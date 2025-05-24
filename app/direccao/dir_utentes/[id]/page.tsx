@@ -34,10 +34,15 @@ type Solicitacao = {
 };
 
 
-export default function UtentePerfilPage() {
+interface PageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default function UtentePerfilPage({ params }: PageProps) {
   const router = useRouter();
-  const params = useParams();
-  const id = params?.id as string;
+  const id = params.id;
   const [utente, setUtente] = useState<Utente | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
