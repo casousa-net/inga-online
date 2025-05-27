@@ -1,15 +1,17 @@
+'use client';
+
 import React from 'react';
+import { useParams } from 'next/navigation';
 import ClientPage from './client-page';
 
-interface PageProps {
-  params: {
-    id: string;
-  };
-}
-
-export default function AutorizacaoPage({ params }: PageProps) {
-  // Componente do servidor que apenas passa o ID para o componente do cliente
-  const { id } = params;
+// Componente da página
+export default function AutorizacaoPage() {
+  const params = useParams();
+  const id = params?.id as string;
+  
+  if (!id) {
+    return <div>ID da autorização não encontrado</div>;
+  }
   
   return <ClientPage id={id} />;
 }

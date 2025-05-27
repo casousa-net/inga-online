@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, ChevronLeft, CheckCircle } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useRouter } from 'next/navigation';
 
 type Autorizacao = {
   id: number;
@@ -62,18 +62,33 @@ function calcularValorFinal(valor: number): number {
   return totalCobrar;
 }
 
-export default function AutorizacaoDetalhesPage({ params }: { params: Promise<{ id: string }> }) {
+export default function AutorizacaoDetalhesPage() {
+  const params = useParams();
+  const id = params?.id as string;
   const router = useRouter();
   const [autorizacao, setAutorizacao] = useState<Autorizacao | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showPixModal, setShowPixModal] = useState(false);
+  const [pixCode, setPixCode] = useState('');
+  const [pixExpiration, setPixExpiration] = useState('');
+  const [pixStatus, setPixStatus] = useState<'pending' | 'paid' | 'expired'>('pending');
+  const [pixCheckInterval, setPixCheckInterval] = useState<NodeJS.Timeout | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'mpesa' | null>(null);
+  const [mpesaPhone, setMpesaPhone] = useState('');
+  const [mpesaLoading, setMpesaLoading] = useState(false);
+  const [mpesaError, setMpesaError] = useState('');
+  const [mpesaSuccess, setMpesaSuccess] = useState(false);
+  const [mpesaCheckInterval, setMpesaCheckInterval] = useState<NodeJS.Timeout | null>(null);
+  const [showMpesaModal, setShowMpesaModal] = useState(false);
+  const [mpesaReference, setMpesaReference] = useState('');
+  const [mpesaAmount, setMpesaAmount] = useState(0);
+  const [mpesaExpiration, setMpesaExpiration] = useState('');
   const [confirmandoPagamento, setConfirmandoPagamento] = useState(false);
-  
-  // Unwrap params using React.use()
-  const unwrappedParams = React.use(params);
 
   useEffect(() => {
     // Extrair apenas o número do ID, caso esteja no formato PA-000002
-    const idNumerico = unwrappedParams.id.toString().replace(/^PA-0*/, '');
+    const idNumerico = id.toString().replace(/^PA-0*/, '');
     
     fetch(`/api/solicitacao/${idNumerico}`)
       .then(res => {
@@ -93,7 +108,7 @@ export default function AutorizacaoDetalhesPage({ params }: { params: Promise<{ 
         console.error('Erro ao carregar autorização:', err);
         setLoading(false);
       });
-  }, [unwrappedParams.id]);
+  }, [id]);
 
   if (loading) {
     return (

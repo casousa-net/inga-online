@@ -10,8 +10,9 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   try {
     // Usar o params de forma assíncrona
     const { id } = params;

@@ -3,8 +3,9 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: Request,
-  context: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   try {
     const id = parseInt(context.params.id);
     

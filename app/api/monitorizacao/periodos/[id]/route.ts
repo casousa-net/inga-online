@@ -42,8 +42,9 @@ type PeriodoMonitorizacao = {
 // Rota para solicitar reabertura de um período
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   console.log('Processando solicitação de reabertura...');
 
   try {

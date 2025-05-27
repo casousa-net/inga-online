@@ -5,8 +5,9 @@ import bcrypt from "bcrypt";
 // Redefinir senha de usuário
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   try {
     const id = parseInt(params.id);
     const body = await request.json();

@@ -1,10 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { use } from 'react';
 import { Loader2, Mail, Phone, Calendar, Building, UserCog, Users, Briefcase, ChevronDown, ArrowLeft, FileText, History } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { Badge } from '../../../../components/ui/badge';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 
 type HistoricoNivel = {
   id: number;
@@ -34,11 +33,12 @@ type Colaborador = {
   historicoNiveis: HistoricoNivel[];
 };
 
-export default function ColaboradorDetalhesPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
+export default function ColaboradorDetalhesPage() {
+  const params = useParams();
+  const id = params?.id as string;
   const [colaborador, setColaborador] = useState<Colaborador | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [showEditForm, setShowEditForm] = useState(false);
   const [novoNivel, setNovoNivel] = useState('');
   const [novaArea, setNovaArea] = useState('');
@@ -50,7 +50,7 @@ export default function ColaboradorDetalhesPage({ params }: { params: Promise<{ 
     const fetchColaborador = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/usuarios/colaboradores/${resolvedParams.id}`);
+        const response = await fetch(`/api/usuarios/colaboradores/${id}`);
         
         if (!response.ok) {
           throw new Error('Erro ao buscar dados do colaborador');
@@ -68,13 +68,17 @@ export default function ColaboradorDetalhesPage({ params }: { params: Promise<{ 
       }
     };
     
-    fetchColaborador();
-  }, [resolvedParams.id]);
+    if (id) {
+      fetchColaborador();
+    }
+  }, [id]);
 
   const handleUpdateColaborador = async () => {
+    if (!id) return;
+    
     try {
       setUpdating(true);
-      const response = await fetch(`/api/usuarios/colaboradores/${resolvedParams.id}`, {
+      const response = await fetch(`/api/usuarios/colaboradores/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -91,7 +95,7 @@ export default function ColaboradorDetalhesPage({ params }: { params: Promise<{ 
       }
 
       // Recarregar os dados do colaborador
-      const responseGet = await fetch(`/api/usuarios/colaboradores/${resolvedParams.id}`);
+      const responseGet = await fetch(`/api/usuarios/colaboradores/${id}`);
       const data = await responseGet.json();
       setColaborador(data);
       setShowEditForm(false);

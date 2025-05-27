@@ -6,8 +6,9 @@ const prisma = new PrismaClient();
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { pa: string } }
+  context: any
 ) {
+  const { params } = context;
   console.log('Recebido pedido de verificação para PA:', params.pa);
   try {
     let pa = params.pa;

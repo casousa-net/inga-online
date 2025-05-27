@@ -16,8 +16,9 @@ type ColaboradorResponse = {
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   console.log(`GET request for colaborador ID: ${params.id}`);
   try {
     const id = Number(params.id);
@@ -116,8 +117,9 @@ export async function GET(
 // Atualizar nível e área do colaborador
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   try {
     const id = Number(params.id);
     if (isNaN(id)) {

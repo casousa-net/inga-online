@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect } from 'react';
 import { Button } from "components/ui/button";
 import Link from "next/link";
 import MobileMenu from "./components/MobileMenu";
@@ -22,6 +25,19 @@ const faqs = [
 ];
 
 export default function Home() {
+  // Adicionar log para debug
+  useEffect(() => {
+    console.log('Home page loaded');
+    
+    // Verificar se há algum redirecionamento automático
+    const checkLocalStorage = () => {
+      // Limpar qualquer estado que possa estar causando redirecionamento
+      localStorage.removeItem('redirectTo');
+    };
+    
+    checkLocalStorage();
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#f4f7fa] to-[#e1e7ef]">
       {/* Navbar */}
@@ -29,7 +45,7 @@ export default function Home() {
         <nav className="w-full max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
           <div className="flex items-center gap-3">
             <img src="/logo_inga.png" alt="Logo" className="h-10 w-auto" />
-            <span className="font-bold text-lg text-primary tracking-tight">ONLINE</span>
+            <span className="font-bold text-lg text-[#84cc16] tracking-tight">ONLINE</span>
           </div>
           {/* Desktop menu */}
           <div className="hidden md:flex gap-3 items-center">
@@ -40,76 +56,137 @@ export default function Home() {
               <Button variant="ghost" className="font-semibold">Entrar</Button>
             </Link>
             <Link href="/cadastro">
-              <Button className="font-semibold">Criar Conta</Button>
+              <Button className="font-semibold bg-[#84cc16] hover:bg-[#65a30d] text-white">Criar Conta</Button>
             </Link>
             <a href="https://inga.gov.ao" target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" className="font-semibold border-primary text-primary">INGA</Button>
+              <Button variant="outline" className="font-semibold border-[#84cc16] text-[#84cc16]">INGA</Button>
             </a>
           </div>
           {/* Mobile menu (hamburguer) */}
           <MobileMenu />
         </nav>
       </header>
+
       {/* Hero Section */}
-      <section className="flex flex-col md:flex-row items-center justify-between w-full max-w-7xl mx-auto px-2 sm:px-6 py-8 sm:py-16 gap-8 sm:gap-10">
-        <div className="flex-1 flex flex-col gap-6 w-full">
-          <h1 className="text-2xl xs:text-3xl md:text-5xl font-bold text-primary mb-2 text-center md:text-left">Solicite autorizações e acompanhe seus processos ambientais online</h1>
-          <p className="text-base sm:text-lg text-gray-700 max-w-full md:max-w-xl mx-auto md:mx-0 text-center md:text-left">Plataforma oficial para gestão de licenças, monitorização e autorizações ambientais. Reduza a burocracia, ganhe tempo e acompanhe tudo em tempo real.</p>
-          <div className="flex flex-col xs:flex-row gap-3 sm:gap-4 mt-2 w-full justify-center md:justify-start">
-            <Link href="/login">
-              <Button size="lg" className="w-full xs:w-auto px-8 py-2 text-lg font-semibold rounded-lg">Entrar</Button>
-            </Link>
-            <Link href="/cadastro">
-              <Button size="lg" variant="outline" className="w-full xs:w-auto px-8 py-2 text-lg font-semibold rounded-lg border-primary text-primary">Criar Conta</Button>
-            </Link>
+      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24">
+        <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+              Gestão Ambiental Simplificada
+            </h1>
+            <p className="text-lg text-gray-600 mb-8">
+              Solicite autorizações ambientais, monitore processos e gerencie licenças em um só lugar.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Link href="/cadastro">
+                <Button className="px-6 py-3 bg-[#84cc16] hover:bg-[#65a30d] text-white font-medium rounded-lg">
+                  Criar Conta
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button variant="outline" className="px-6 py-3 border-[#84cc16] text-[#84cc16] font-medium rounded-lg">
+                  Entrar
+                </Button>
+              </Link>
+            </div>
+          </div>
+          <div className="relative">
+            <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden shadow-lg">
+              <img 
+                src="/hero-image.jpg" 
+                alt="Gestão Ambiental" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1274&q=80';
+                }}
+              />
+            </div>
           </div>
         </div>
-        <div className="flex-1 flex justify-center w-full max-w-xs sm:max-w-md mx-auto">
-          <img src="/hero-illustration.svg" alt="Ilustração" className="w-full h-auto" />
-        </div>
       </section>
-      {/* Sobre */}
-      <section className="bg-white py-14 border-y border-gray-100">
-        <div className="max-w-5xl mx-auto px-6 flex flex-col md:flex-row gap-10 items-center">
-          <img src="/about-illustration.svg" alt="Sobre" className="w-64 h-auto hidden md:block" />
-          <div className="flex-1">
-            <h2 className="text-2xl font-bold text-primary mb-3">Sobre o Sistema</h2>
-            <p className="text-gray-700 text-lg mb-2">O INGA ONLINE é um sistema moderno desenvolvido para facilitar a emissão de licenças, autorizações e o acompanhamento de processos ambientais em Angola.</p>
-            <ul className="list-disc pl-5 text-gray-600 text-base">
-              <li>Solicite e acompanhe processos de qualquer lugar</li>
-              <li>Documentação digital e notificações em tempo real</li>
-              <li>Compatível com computador, telemóvel e tablet</li>
-              <li>Segurança e transparência em todas as etapas</li>
-            </ul>
+
+      {/* Features */}
+      <section className="bg-white py-16">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6">
+          <h2 className="text-3xl font-bold text-center mb-12">Funcionalidades</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
+              <div className="w-12 h-12 bg-[#84cc16]/20 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#84cc16]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Autorizações Ambientais</h3>
+              <p className="text-gray-600">Solicite e acompanhe suas autorizações ambientais com facilidade e transparência.</p>
+            </div>
+            <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
+              <div className="w-12 h-12 bg-[#84cc16]/20 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#84cc16]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Monitorização</h3>
+              <p className="text-gray-600">Acompanhe visitas técnicas e monitore o cumprimento das condicionantes ambientais.</p>
+            </div>
+            <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
+              <div className="w-12 h-12 bg-[#84cc16]/20 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#84cc16]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Gestão de Pagamentos</h3>
+              <p className="text-gray-600">Gerencie pagamentos de taxas e emolumentos com referências RUPE integradas.</p>
+            </div>
           </div>
         </div>
       </section>
-      {/* FAQ */}
-      <section className="py-14 bg-gradient-to-b from-[#f4f7fa] to-[#e1e7ef]">
-        <div className="max-w-4xl mx-auto px-6">
-          <h2 className="text-2xl font-bold text-primary mb-6 text-center">Perguntas Frequentes</h2>
-          <div className="space-y-4">
-            {faqs.map((faq, idx) => (
-              <details key={idx} className="bg-white rounded-xl shadow p-4 border border-gray-100 group">
-                <summary className="font-semibold text-lg cursor-pointer flex items-center justify-between group-open:text-primary">
-                  {faq.q}
-                  <span className="ml-2 text-primary">+</span>
-                </summary>
-                <div className="mt-2 text-gray-700 text-base">{faq.a}</div>
-              </details>
+
+      {/* FAQ Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6">
+          <h2 className="text-3xl font-bold text-center mb-12">Perguntas Frequentes</h2>
+          <div className="grid md:grid-cols-2 gap-8">
+            {faqs.map((faq, index) => (
+              <div key={index} className="bg-white p-6 rounded-lg shadow-sm">
+                <h3 className="text-xl font-semibold mb-3">{faq.q}</h3>
+                <p className="text-gray-600">{faq.a}</p>
+              </div>
             ))}
           </div>
         </div>
       </section>
+
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-100 py-6 mt-auto">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-gray-500 text-sm">
-          <div className="flex items-center gap-2">
-            <img src="/logo_inga.png" alt="Logo" className="h-8 w-auto" />
-            <span>INGA ONLINE &mdash; Sistema Integrado de Gestão Ambiental</span>
+      <footer className="bg-gray-900 text-white py-12">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid md:grid-cols-3 gap-8">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <img src="/logo_inga.png" alt="Logo" className="h-10 w-auto" />
+                <span className="font-bold text-lg text-[#84cc16] tracking-tight">ONLINE</span>
+              </div>
+              <p className="text-gray-400">
+                Sistema de gestão ambiental para autorizações e monitorização.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Links Rápidos</h3>
+              <ul className="space-y-2">
+                <li><Link href="/login" className="text-gray-400 hover:text-white">Entrar</Link></li>
+                <li><Link href="/cadastro" className="text-gray-400 hover:text-white">Criar Conta</Link></li>
+                <li><a href="https://inga.gov.ao" className="text-gray-400 hover:text-white">Site Oficial</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Contato</h3>
+              <p className="text-gray-400 mb-2">Luanda, Angola</p>
+              <p className="text-gray-400 mb-2">info@inga.gov.ao</p>
+              <p className="text-gray-400">+244 222 123 456</p>
+            </div>
           </div>
-          <span>&copy; {new Date().getFullYear()} Governo de Angola. Todos os direitos reservados.</span>
-          <a href="https://api.whatsapp.com/send?phone=244948701010&text=Caro%20utente,%20%20%0A%0ASeja%20bem-vindo%20ao%20canal%20de%20apoio%20do%20Sistema%INGA%ONLINE.%20Podemos%20ajud%C3%A1-lo?" target="_blank" rel="noopener noreferrer" className="hover:text-primary underline">Fale connosco</a>
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+            <p>© {new Date().getFullYear()} INGA ONLINE. Todos os direitos reservados.</p>
+          </div>
         </div>
       </footer>
     </div>

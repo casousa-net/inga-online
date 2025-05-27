@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   try {
     const id = parseInt(params.id);
     const body = await request.json();
@@ -26,7 +27,7 @@ export async function PUT(
     }
     
     // Verificar se o código pautal existe
-    const existingCodigo = await prisma.codigoPautal.findUnique({
+    const existingCodigo = await prisma.codigopautal.findUnique({
       where: { id }
     });
     
@@ -38,7 +39,7 @@ export async function PUT(
     }
     
     // Verificar se o código já está em uso por outro registro
-    const duplicateCode = await prisma.codigoPautal.findFirst({
+    const duplicateCode = await prisma.codigopautal.findFirst({
       where: { 
         codigo: body.codigo,
         id: { not: id }
@@ -53,7 +54,7 @@ export async function PUT(
     }
     
     // Atualizar o código pautal
-    const codigoPautal = await prisma.codigoPautal.update({
+    const codigopautal = await prisma.codigopautal.update({
       where: { id },
       data: {
         codigo: body.codigo,
@@ -61,7 +62,7 @@ export async function PUT(
       }
     });
     
-    return NextResponse.json(codigoPautal);
+    return NextResponse.json(codigopautal);
   } catch (error) {
     console.error("Erro ao atualizar código pautal:", error);
     return NextResponse.json(
@@ -73,13 +74,14 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   try {
     const id = parseInt(params.id);
     
     // Verificar se o código pautal existe
-    const existingCodigo = await prisma.codigoPautal.findUnique({
+    const existingCodigo = await prisma.codigopautal.findUnique({
       where: { id }
     });
     
@@ -91,7 +93,7 @@ export async function DELETE(
     }
     
     // Excluir o código pautal
-    await prisma.codigoPautal.delete({
+    await prisma.codigopautal.delete({
       where: { id }
     });
     

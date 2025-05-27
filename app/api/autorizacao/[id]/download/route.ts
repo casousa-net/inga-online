@@ -6,7 +6,8 @@ import fs from "fs/promises";
 import path from "path";
 import QRCode from 'qrcode';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: any) {
+  const { params } = context;
   console.log('Iniciando download da autorização...');
   try {
     const id = Number(params.id);
@@ -103,7 +104,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         
         // Gerar o PDF
         const pdfBuffer = await renderToBuffer(
-          AutorizacaoAmbientalPDF({ data: pdfData, qrCodeUrl: qrCodeDataUrl })
+          AutorizacaoAmbientalPDF({ data: pdfData, qrCodeUrl: qrCodeDataUrl }) as any
         );
         
         // Configurar headers para download do arquivo

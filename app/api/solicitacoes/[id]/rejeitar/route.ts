@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   try {
     const id = Number(params.id);
     if (isNaN(id)) {
@@ -25,7 +26,7 @@ export async function POST(
     }
 
     // Verificar se a solicitação existe
-    const solicitacao = await prisma.solicitacaoAutorizacao.findUnique({
+    const solicitacao = await prisma.solicitacaoautorizacao.findUnique({
       where: { id },
     });
 
@@ -37,12 +38,12 @@ export async function POST(
     }
 
     // Atualizar a solicitação
-    const updatedSolicitacao = await prisma.solicitacaoAutorizacao.update({
+    const updatedSolicitacao = await prisma.solicitacaoautorizacao.update({
       where: { id },
       data: {
         status: 'Rejeitado',
         motivoRejeicao,
-        dataRejeicao: new Date(),
+        updatedAt: new Date(),
       },
     });
 

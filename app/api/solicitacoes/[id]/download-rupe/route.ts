@@ -5,8 +5,9 @@ import fs from 'fs/promises';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+  const { params } = context;
   try {
     console.log(`Iniciando download de RUPE para solicitação ID: ${params.id}`);
     const id = parseInt(params.id);

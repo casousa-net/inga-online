@@ -96,7 +96,8 @@ interface CodigoPautal {
   taxa: number;
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: any) {
+  const { params } = context;
   try {
     // Aguarda a resolução dos parâmetros
     const resolvedParams = await Promise.resolve(params);

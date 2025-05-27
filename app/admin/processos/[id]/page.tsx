@@ -1,19 +1,16 @@
-import { use } from 'react';
-import { Metadata } from 'next';
+'use client';
+
+import { useParams } from 'next/navigation';
 import ProcessoDetalhesPageClient from './page-client';
 
-export const metadata: Metadata = {
-  title: 'Detalhes do Processo | INGA',
-  description: 'Detalhes do processo de licenciamento',
-};
-
-interface ProcessoDetalhesPageProps {
-  params: {
-    id: string;
-  };
-}
-
-export default function ProcessoDetalhesPage({ params }: ProcessoDetalhesPageProps) {
-  const id = use(Promise.resolve(params.id));
+// Componente da página
+export default function ProcessoDetalhesPage() {
+  const params = useParams();
+  const id = params?.id as string;
+  
+  if (!id) {
+    return <div>ID do processo não encontrado</div>;
+  }
+  
   return <ProcessoDetalhesPageClient id={id} />;
 }

@@ -27,6 +27,8 @@ export default function RecuperarSenhaPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [devCode, setDevCode] = useState<string | null>(null);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
@@ -42,9 +44,6 @@ export default function RecuperarSenhaPage() {
     setLoading(true);
 
     try {
-      // Simulando uma chamada de API
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
       if (step === 'email') {
         // Validação básica de email
         if (!form.email.includes('@')) {
@@ -52,6 +51,36 @@ export default function RecuperarSenhaPage() {
           setLoading(false);
           return;
         }
+
+        // Enviar código de recuperação por email
+        const response = await fetch('/api/email/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: form.email,
+            action: 'send-code',
+          }),
+        });
+
+        const data = await response.json();
+        console.log('Resposta da API de email:', data);
+
+        if (!response.ok || !data.success) {
+          setError(data.message || 'Erro ao enviar o código. Por favor, tente novamente.');
+          setLoading(false);
+          return;
+        }
+
+        // Capturar URL de visualização do email (apenas em ambiente de desenvolvimento)
+        if (data.previewUrl) {
+          setPreviewUrl(data.previewUrl);
+        }
+
+        // Não precisamos mais capturar o código, pois ele não é mais enviado na resposta da API
+
+        // Avançar para a próxima etapa
         setStep('code');
       } else if (step === 'code') {
         // Validação básica do código
@@ -60,6 +89,30 @@ export default function RecuperarSenhaPage() {
           setLoading(false);
           return;
         }
+
+        // Verificar o código via API
+        const response = await fetch('/api/email/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: form.email,
+            code: form.code,
+            action: 'verify-code',
+          }),
+        });
+
+        const data = await response.json();
+        console.log('Resposta da API de verificação:', data);
+
+        if (!response.ok || !data.success) {
+          setError(data.message || 'Código inválido ou expirado. Por favor, tente novamente.');
+          setLoading(false);
+          return;
+        }
+
+        // Avançar para a próxima etapa
         setStep('newPassword');
       } else if (step === 'newPassword') {
         // Validação de senha
@@ -73,6 +126,32 @@ export default function RecuperarSenhaPage() {
           setLoading(false);
           return;
         }
+
+        // Chamar a API para atualizar a senha
+        const response = await fetch('/api/usuarios/atualizar-senha', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: form.email,
+            newPassword: form.newPassword,
+          }),
+        });
+
+        const data = await response.json();
+        console.log('Resposta da API de atualização de senha:', data);
+
+        if (!response.ok || !data.success) {
+          setError(data.message || 'Erro ao atualizar a senha. Por favor, tente novamente.');
+          setLoading(false);
+          return;
+        }
+        
+        // Limpar os dados de recuperação do localStorage
+        localStorage.removeItem('recoveryCode');
+        localStorage.removeItem('recoveryEmail');
+        
         // Senha alterada com sucesso
         setSuccess(true);
       }
@@ -130,7 +209,23 @@ export default function RecuperarSenhaPage() {
       footerLinkText="Fazer login"
       footerLinkHref="/login"
     >
-      <form className="space-y-6" onSubmit={handleSubmit}>
+      {(previewUrl) && (
+        <div className="mb-6 p-4 border border-[#84cc16] rounded-lg bg-lime-50">
+          <h3 className="text-sm font-semibold text-[#65a30d] mb-2">Visualização do Email</h3>
+          <div>
+            <p className="text-xs text-gray-600 mb-1">Visualizar email enviado:</p>
+            <a 
+              href={previewUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs text-[#84cc16] hover:text-[#65a30d] underline break-all"
+            >
+              {previewUrl}
+            </a>
+          </div>
+        </div>
+      )}
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
           {step === 'email' && (
             <div>
