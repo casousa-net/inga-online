@@ -123,4 +123,56 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Estilos para o carrossel de autenticação */
+  .auth-carousel-slide-enter {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  .auth-carousel-slide-enter-active {
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity 500ms ease-out, transform 500ms ease-out;
+  }
+  .auth-carousel-slide-exit {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  .auth-carousel-slide-exit-active {
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: opacity 300ms ease-in, transform 300ms ease-in;
+  }
+  
+  /* Melhorias para os formulários */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="number"],
+  textarea,
+  select {
+    @apply w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200;
+  }
+  
+  /* Estilo para o botão de submit */
+  button[type="submit"],
+  .btn-primary {
+    @apply w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200;
+  }
+  
+  /* Estilo para cards de autenticação */
+  .auth-card {
+    @apply bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-8 border border-gray-100 dark:border-gray-700;
+  }
+  
+  /* Estilo para mensagens de erro */
+  .error-message {
+    @apply p-3 text-sm text-red-700 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-lg;
+  }
+  
+  /* Estilo para mensagens de sucesso */
+  .success-message {
+    @apply p-3 text-sm text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400 rounded-lg;
+  }
 }

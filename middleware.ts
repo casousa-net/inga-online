@@ -4,10 +4,13 @@ const PUBLIC_PATHS = [
   '/',
   '/login',
   '/cadastro',
+  '/recuperar-senha',
+  '/test-page',
   '/api/auth/login',
   '/api/auth/register',
   '/favicon.ico',
   '/logo_inga.png',
+  '/_next',
 ];
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret_key';

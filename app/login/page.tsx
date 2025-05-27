@@ -1,8 +1,10 @@
 'use client';
-import { useState } from "react";
-import { Input } from "components/ui/input";
-import { Button } from "components/ui/button";
-import Link from "next/link";
+import { useState } from 'react';
+import Link from 'next/link';
+import { Input } from 'components/ui/input';
+import { Button } from 'components/ui/button';
+import { AuthLayout } from '@/components/AuthLayout';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [form, setForm] = useState({
@@ -78,27 +80,76 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#f4f7fa] to-[#e1e7ef] px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-        <h1 className="text-2xl font-bold text-primary mb-6 text-center">Entrar no Sistema</h1>
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+    <AuthLayout
+      title="Acesse sua conta"
+      footerText="Não tem uma conta?"
+      footerLinkText="Cadastre-se"
+      footerLinkHref="/cadastro"
+    >
+      <form className="space-y-6" onSubmit={handleSubmit}>
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">NIF</label>
-            <Input name="nif" value={form.nif} onChange={handleChange} required maxLength={14} />
+            <label htmlFor="nif" className="block text-sm font-medium text-gray-700 mb-1">
+              NIF
+            </label>
+            <Input
+              id="nif"
+              name="nif"
+              type="text"
+              value={form.nif}
+              onChange={handleChange}
+              required
+              maxLength={14}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              placeholder="Digite seu NIF"
+            />
           </div>
+          
           <div>
-            <label className="block text-sm font-medium mb-1">Senha</label>
-            <Input name="senha" value={form.senha} onChange={handleChange} required type="password" />
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="senha" className="block text-sm font-medium text-gray-700">
+                Senha
+              </label>
+              <Link href="/recuperar-senha" className="text-sm font-medium text-[#84cc16] hover:text-[#65a30d]">
+                Esqueceu a senha?
+              </Link>
+            </div>
+            <Input
+              id="senha"
+              name="senha"
+              type="password"
+              value={form.senha}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              placeholder="Digite sua senha"
+            />
           </div>
-          {error && <div className="text-red-600 text-sm text-center">{error}</div>}
-          <Button type="submit" className="mt-4 w-full" disabled={loading}>
-            {loading ? "Entrando..." : "Entrar"}
+          
+          {error && (
+            <div className="p-3 text-sm text-red-700 bg-red-50 rounded-lg">
+              {error}
+            </div>
+          )}
+        </div>
+        
+        <div>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#84cc16] hover:bg-[#65a30d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#84cc16] transition-colors"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Entrando...
+              </>
+            ) : (
+              'Entrar'
+            )}
           </Button>
-          <div className="text-center mt-2">
-            <Link href="/cadastro" className="text-primary underline">Não tem conta? Cadastre-se</Link>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+    </AuthLayout>
   );
 }

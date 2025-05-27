@@ -7,7 +7,7 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
   const pathname = usePathname();
   
   // Rotas que não devem mostrar a sidebar
-  const noSidebarRoutes = ["/", "/login", "/cadastro"];
+  const noSidebarRoutes = ["/", "/login", "/cadastro", "/recuperar-senha"];
   
   // Verificar se é página de verificação ou página de erro 404
   const isVerificationPage = pathname.startsWith("/verificar");
