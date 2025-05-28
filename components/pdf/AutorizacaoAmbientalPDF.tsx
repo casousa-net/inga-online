@@ -4,6 +4,11 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import QRCode from 'qrcode';
 
+// Determinar a URL base para recursos estáticos
+const BASE_URL = typeof window !== 'undefined' 
+  ? window.location.origin 
+  : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
 // Registrar fontes
 Font.register({
   family: 'Times-Roman',
@@ -251,12 +256,12 @@ export interface AutorizacaoAmbientalPDFProps {
 // Componente do PDF
 const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({
   data,
-  logoUrl = 'http://localhost:3000/assets/pdf/logo-angola.png',
-  assinaturaUrl = 'http://localhost:3000/assets/pdf/assinatura.png',
+  logoUrl = `${BASE_URL}/assets/pdf/logo-angola.png`,
+  assinaturaUrl = `${BASE_URL}/assets/pdf/assinatura.png`,
   qrCodeUrl
 }) => {
   // Gerar URL para verificação
-  const baseUrl = 'http://localhost:3000';
+  const baseUrl = BASE_URL;
   
   // Usar o PA (número do processo) para a verificação em vez do ID
   console.log('Dados recebidos no PDF:', data);
@@ -280,7 +285,20 @@ const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({
   const qrCodeImageUrl = qrCodeUrl || `${baseUrl}/api/qrcode/${encodeURIComponent(numeroAutorizacao)}`;
   console.log('URL do QR code:', qrCodeImageUrl);
 
-  const dataFormatada = format(data.dataEmissao, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+  // Garantir que a data é válida antes de formatar
+  let dataFormatada = '';
+  try {
+    const dataEmissao = data.dataEmissao instanceof Date ? data.dataEmissao : new Date(data.dataEmissao);
+    if (!isNaN(dataEmissao.getTime())) {
+      dataFormatada = format(dataEmissao, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+    } else {
+      dataFormatada = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+      console.warn('Data de emissão inválida, usando data atual');
+    }
+  } catch (error) {
+    console.error('Erro ao formatar data:', error);
+    dataFormatada = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+  }
 
   return (
     <Document>
@@ -297,7 +315,7 @@ const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({
         {/* Marca d'água */}
         <View style={styles.watermark}>
           <Image
-            src="http://localhost:3000/assets/pdf/logo-inga.png"
+            src={`${BASE_URL}/assets/pdf/logo-inga.png`}
             style={styles.watermarkImage}
           />
         </View>
@@ -343,11 +361,11 @@ const AutorizacaoAmbientalPDF: React.FC<AutorizacaoAmbientalPDFProps> = ({
 
           <View style={styles.infoRow}>
             <Text style={styles.label}>QUANTIDADE:</Text>
-            <Text style={styles.value}>{data.quantidade}</Text>
+            <Text style={styles.value}>{data.quantidade} Un</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.label}>CÓDIGOS PAUTAIS:</Text>
+            <Text style={styles.label}>HS CODES:</Text>
             <Text style={styles.value}>{data.codigosPautais}</Text>
           </View>
 

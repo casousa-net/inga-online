@@ -1,8 +1,7 @@
 import React, { useState, forwardRef, ForwardedRef, useEffect } from 'react';
-import { PDFDownloadLink } from '@react-pdf/renderer';
 import { Button } from 'components/ui/button';
-import { Download, Loader2 } from 'lucide-react';
-import AutorizacaoAmbientalPDF, { AutorizacaoAmbientalData } from './AutorizacaoAmbientalPDF';
+import { Download, Loader2, Eye } from 'lucide-react';
+import { AutorizacaoAmbientalData } from './AutorizacaoAmbientalPDF';
 import QRCode from 'qrcode';
 
 interface AutorizacaoAmbientalDownloadProps {
@@ -112,78 +111,83 @@ const AutorizacaoAmbientalDownload = forwardRef<HTMLButtonElement, AutorizacaoAm
     numeroProcesso: data.numeroProcesso || `PA-${String(data.numeroAutorizacao).padStart(6, '0')}`
   };
   
-  // Função para baixar o PDF diretamente
-  const handleDownload = async () => {
+  // Estado para controlar erros de download
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // Função para baixar o PDF redirecionando para a página de visualização com parâmetro download=true
+  const handleDownload = () => {
     try {
-      console.log('Iniciando download direto do PDF');
-      const response = await fetch(`/api/autorizacao/${data.id}/download`);
+      setIsDownloading(true);
+      setDownloadError(null);
+      console.log('Iniciando download do PDF via página de visualização');
       
-      if (!response.ok) {
-        throw new Error('Erro ao baixar PDF');
+      // Verificar se temos o ID da autorização
+      if (!data.id) {
+        throw new Error('ID da autorização não encontrado');
       }
       
-      // Obter o blob do PDF
-      const blob = await response.blob();
+      // Redirecionar para a página de visualização com parâmetro download=true
+      window.location.href = `/autorizacao/${data.id}/visualizar?download=true`;
       
-      // Criar URL para o blob
-      const url = window.URL.createObjectURL(blob);
-      
-      // Criar link temporário para download
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      
-      // Limpar
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      console.log('Redirecionando para download do PDF');
     } catch (error) {
-      console.error('Erro ao iniciar download:', error);
+      console.error('Erro ao iniciar download do PDF:', error);
+      setDownloadError(error instanceof Error ? error.message : 'Erro desconhecido');
+      setIsDownloading(false);
     }
+    // Não definimos setIsDownloading(false) aqui porque o usuário será redirecionado
   };
   
+  // Função para visualizar
+  const handleView = () => {
+    if (!data.id) {
+      console.error('ID da autorização não fornecido');
+      return;
+    }
+    
+    window.open(`/autorizacao/${data.id}/visualizar`, '_blank');
+  };
+  
+  // Função para download automático (se necessário)
+  useEffect(() => {
+    if (autoDownload && isClient && data.id) {
+      // Usar a nova abordagem de redirecionamento para a página de visualização
+      window.location.href = `/autorizacao/${data.id}/visualizar?download=true`;
+    }
+  }, [autoDownload, isClient, data.id]);
+  
   return (
-    <PDFDownloadLink
-      document={<AutorizacaoAmbientalPDF data={pdfData} qrCodeUrl={qrCodeUrl} />}
-      fileName={fileName}
-      className="inline-block"
-    >
-      {({ loading, error }) => {
-        // Se estiver no modo de download automático, acionar o download direto
-        if (autoDownload && !loading && ref && 'current' in ref && ref.current) {
-          setTimeout(() => {
-            handleDownload();
-          }, 500);
-        }
-        
-        return (
-          <Button 
-            ref={ref}
-            disabled={loading} 
-            className="flex items-center gap-2"
-            variant="default"
-            onClick={() => {
-              if (!loading) {
-                handleDownload();
-              }
-            }}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Gerando PDF...
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4" />
-                Baixar Autorização
-              </>
-            )}
-          </Button>
-        );
-      }}
-    </PDFDownloadLink>
+    <div className="flex space-x-2">
+      {/* Botão para baixar via API */}
+      <Button
+        ref={ref}
+        onClick={handleDownload}
+        disabled={isDownloading}
+        className="bg-green-600 hover:bg-green-700"
+      >
+        {isDownloading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Baixando...
+          </>
+        ) : (
+          <>
+            <Download className="mr-2 h-4 w-4" />
+            Baixar Autorização
+          </>
+        )}
+      </Button>
+      
+      {/* Botão para visualizar */}
+      <Button
+        onClick={handleView}
+        className="bg-blue-600 hover:bg-blue-700"
+      >
+        <Eye className="mr-2 h-4 w-4" />
+        Visualizar
+      </Button>
+    </div>
   );
 });
 
