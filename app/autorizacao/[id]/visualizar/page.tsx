@@ -75,8 +75,13 @@ export default function VisualizarAutorizacaoPage() {
       // Usar o blob para download direto
       const downloadPDFDirectly = async () => {
         try {
+          setLoading(true);
+          
           // Criar um elemento para renderizar o PDF
           const { pdf } = await import('@react-pdf/renderer');
+          
+          // Mostrar mensagem para o usuário
+          console.log('Iniciando geração do PDF para download...');
           
           // Renderizar o PDF como blob
           const blob = await pdf(
@@ -88,28 +93,43 @@ export default function VisualizarAutorizacaoPage() {
             />
           ).toBlob();
           
+          console.log('PDF gerado com sucesso, preparando download...');
+          
           // Criar URL para o blob
           const url = URL.createObjectURL(blob);
           
           // Criar link para download
           const link = document.createElement('a');
           link.href = url;
-          link.download = `autorizacao-ambiental-${data.numeroProcesso || data.id || 'documento'}.pdf`;
+          const fileName = `autorizacao-ambiental-${data.numeroProcesso || data.id || 'documento'}.pdf`;
+          link.download = fileName;
+          
+          // Adicionar link ao documento
           document.body.appendChild(link);
           
-          // Clicar no link para iniciar o download
+          // Disparar o download
+          console.log('Iniciando download do arquivo:', fileName);
           link.click();
           
           // Limpar
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
+          setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            console.log('Download concluído e recursos liberados');
+          }, 100);
           
-          // Remover o parâmetro de download da URL
+          // Remover o parâmetro de download da URL sem recarregar a página
           const urlObj = new URL(window.location.href);
-          urlObj.searchParams.delete('download');
-          window.history.replaceState({}, '', urlObj.toString());
+          if (urlObj.searchParams.get('download') === 'true') {
+            urlObj.searchParams.delete('download');
+            window.history.replaceState({}, '', urlObj.toString());
+          }
         } catch (error) {
           console.error('Erro ao gerar PDF para download:', error);
+          // Mostrar mensagem de erro para o usuário
+          setError('Ocorreu um erro ao gerar o PDF para download. Por favor, tente novamente.');
+        } finally {
+          setLoading(false);
         }
       };
       

@@ -141,16 +141,27 @@ export default function MoedasPage() {
 
   // Excluir moeda
   const handleDelete = async (id: number) => {
-    if (!confirm('Tem certeza que deseja excluir esta moeda?')) return;
+    if (!window.confirm('Tem certeza que deseja excluir esta moeda?')) return;
     
     try {
+      // Desabilitar interações durante a exclusão
+      setLoading(true);
+      
       const response = await fetch(`/api/moedas/${id}`, {
         method: 'DELETE',
       });
 
+      // Sempre tenta obter os dados da resposta
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (e) {
+        responseData = {};
+      }
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao excluir moeda');
+        // A API retorna o erro na propriedade 'error'
+        throw new Error(responseData.error || 'Erro ao excluir moeda');
       }
 
       // Atualizar lista de moedas
@@ -158,15 +169,26 @@ export default function MoedasPage() {
       
       toast({
         title: "Sucesso",
-        description: "Moeda excluída com sucesso.",
+        description: responseData.message || "Moeda excluída com sucesso.",
       });
+      
+      return { success: true, message: responseData.message || "Moeda excluída com sucesso." };
     } catch (error: any) {
       console.error('Erro ao excluir moeda:', error);
+      
+      // Se for um erro da API, pega a mensagem do erro
+      const errorMessage = error.message || "Não foi possível excluir a moeda.";
+      
       toast({
         title: "Erro",
-        description: error.message || "Não foi possível excluir a moeda.",
+        description: errorMessage,
         variant: "destructive"
       });
+      
+      return { success: false, message: errorMessage };
+    } finally {
+      // Reabilitar interações após a conclusão
+      setLoading(false);
     }
   };
 
@@ -183,12 +205,12 @@ export default function MoedasPage() {
   };
 
   // Função para importar moedas do Excel
-  const handleExcelImport = async (data: any[]) => {
+  const handleExcelImport = async (data: any[]): Promise<{ success: boolean; message?: string }> => {
     try {
       // Mapear os dados do Excel para o formato esperado pela API
       const moedas = data.map(row => ({
-        nome: String(row.nome || row.Nome || row.NOME).trim(),
-        simbolo: String(row.simbolo || row.Simbolo || row.SIMBOLO).trim(),
+        nome: String(row.nome || row.Nome || row.NOME || '').trim(),
+        simbolo: String(row.simbolo || row.Simbolo || row.SIMBOLO || '').trim(),
         taxaCambio: Number(row.taxaCambio || row.TaxaCambio || row['Taxa de Câmbio'] || row.taxa || 0)
       }));
       
@@ -198,7 +220,13 @@ export default function MoedasPage() {
       );
       
       if (invalidMoedas.length > 0) {
-        throw new Error(`${invalidMoedas.length} moedas inválidas. Verifique se todas têm nome, símbolo e taxa de câmbio válida.`);
+        const errorMsg = `${invalidMoedas.length} moedas inválidas. Verifique se todas têm nome, símbolo e taxa de câmbio válida.`;
+        toast({
+          title: "Erro na importação",
+          description: errorMsg,
+          variant: "destructive"
+        });
+        return { success: false, message: errorMsg };
       }
       
       // Enviar para a API
@@ -210,16 +238,29 @@ export default function MoedasPage() {
         body: JSON.stringify({ moedas }),
       });
       
+      const responseData = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao importar moedas');
+        throw new Error(responseData.error || 'Erro ao importar moedas');
       }
       
       // Recarregar a lista após importação
-      fetchMoedas();
+      await fetchMoedas();
+      
+      toast({
+        title: "Sucesso",
+        description: `${moedas.length} moeda(s) importada(s) com sucesso.`,
+      });
+      
+      return { success: true, message: `${moedas.length} moeda(s) importada(s) com sucesso.` };
     } catch (error: any) {
       console.error('Erro ao importar moedas:', error);
-      throw error;
+      toast({
+        title: "Erro na importação",
+        description: error.message || "Ocorreu um erro ao importar as moedas.",
+        variant: "destructive"
+      });
+      return { success: false, message: error.message || "Ocorreu um erro ao importar as moedas." };
     }
   };
 
@@ -236,17 +277,23 @@ export default function MoedasPage() {
             templateFields={['nome', 'simbolo', 'taxaCambio']}
             templateName="moedas"
           />
-          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-            <DialogTrigger asChild>
-              <Button className="bg-lime-600 hover:bg-lime-700 text-white">
-                <Plus size={16} className="mr-2" /> Adicionar Moeda
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Adicionar Nova Moeda</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleAddSubmit} className="space-y-4 mt-4">
+          <Dialog open={showAddDialog} onOpenChange={(open) => {
+        setShowAddDialog(open);
+        if (!open) {
+          setFormData({ nome: '', simbolo: '', taxaCambio: '' });
+        }
+      }}>
+        <DialogTrigger asChild>
+          <Button className="bg-lime-600 hover:bg-lime-700 text-white">
+            <Plus size={16} className="mr-2" /> Adicionar Moeda
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar Nova Moeda</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddSubmit}>
+            <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <label htmlFor="nome" className="text-sm font-medium">Nome da Moeda</label>
                 <Input 
@@ -255,6 +302,7 @@ export default function MoedasPage() {
                   onChange={(e) => setFormData({...formData, nome: e.target.value})}
                   placeholder="Ex: USD, EUR, AKZ" 
                   required
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
@@ -265,6 +313,7 @@ export default function MoedasPage() {
                   onChange={(e) => setFormData({...formData, simbolo: e.target.value})}
                   placeholder="Ex: $, €, Kz" 
                   required
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
@@ -273,22 +322,25 @@ export default function MoedasPage() {
                   id="taxaCambio" 
                   type="number" 
                   step="0.01"
+                  min="0"
                   value={formData.taxaCambio} 
                   onChange={(e) => setFormData({...formData, taxaCambio: e.target.value})}
                   placeholder="Ex: 850.50" 
                   required
+                  className="w-full"
                 />
                 <p className="text-xs text-gray-500">Taxa de câmbio em relação à moeda local (AKZ)</p>
               </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">Cancelar</Button>
-                </DialogClose>
-                <Button type="submit" className="bg-lime-600 hover:bg-lime-700">Salvar</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancelar</Button>
+              </DialogClose>
+              <Button type="submit" className="bg-lime-600 hover:bg-lime-700">Salvar</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
         </div>
       </div>
 

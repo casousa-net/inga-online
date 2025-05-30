@@ -16,7 +16,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        console.log('Recebendo requisição para criar código pautal...');
         const body = await request.json();
+        console.log('Dados recebidos:', body);
         
         // Validação básica
         if (!body.codigo || !body.descricao) {

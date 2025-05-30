@@ -85,12 +85,27 @@ export async function DELETE(
       );
     }
     
+    // Verificar se a moeda está sendo usada em alguma solicitação
+    const solicitacoesComMoeda = await prisma.solicitacaoautorizacao.count({
+      where: { moedaId: id }
+    });
+    
+    if (solicitacoesComMoeda > 0) {
+      return NextResponse.json(
+        { error: `Esta moeda não pode ser excluída pois está sendo usada em ${solicitacoesComMoeda} solicitação(ões)` },
+        { status: 400 }
+      );
+    }
+    
     // Excluir a moeda
     await prisma.moeda.delete({
       where: { id }
     });
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      message: "Moeda excluída com sucesso" 
+    });
   } catch (error) {
     console.error("Erro ao excluir moeda:", error);
     return NextResponse.json(

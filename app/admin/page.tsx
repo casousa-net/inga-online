@@ -1,6 +1,6 @@
 'use client';
 import { Button } from "components/ui/button";
-import { DollarSign, Package, Settings, Users, UserCog, FileText } from "lucide-react";
+import { DollarSign, Package, Settings, Users, UserCog, FileText, ListChecks } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminDashboard() {
@@ -42,6 +42,22 @@ export default function AdminDashboard() {
           <div className="flex flex-col gap-2">
             <Link href="/admin/processos" className="inline-flex items-center text-green-600 hover:text-green-800 font-medium">
               Ver Todos os Processos
+            </Link>
+          </div>
+        </div>
+
+        {/* Códigos Pautais */}
+        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">Códigos Pautais</h2>
+            <div className="p-2 bg-purple-50 rounded-full">
+              <ListChecks className="h-6 w-6 text-purple-500" />
+            </div>
+          </div>
+          <p className="text-gray-600 mb-4">Gerencie os códigos pautais utilizados nas autorizações de importação/exportação.</p>
+          <div className="flex flex-col gap-2">
+            <Link href="/admin/codigos-pautais" className="inline-flex items-center text-purple-600 hover:text-purple-800 font-medium">
+              Gerenciar Códigos Pautais
             </Link>
           </div>
         </div>
